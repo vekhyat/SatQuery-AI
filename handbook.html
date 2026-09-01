@@ -72,13 +72,55 @@
     }
     .topbar button:hover { border-color: #f3f2ed; }
     .topbar a.repo {
-      font: 500 12px var(--mono);
-      color: #f3f2ed;
+      font: 600 13px var(--mono);
+      color: #fff;
       text-decoration: none;
-      border: 1px solid #8aa0b8;
-      padding: 0.35rem 0.6rem;
+      background: var(--saffron);
+      border: 1px solid var(--saffron);
+      padding: 0.4rem 0.75rem;
     }
-    .topbar a.repo:hover { border-color: #f3f2ed; color: #f3f2ed; }
+    .topbar a.repo:hover { filter: brightness(1.08); color: #fff; }
+    .repo-banner {
+      background: var(--navy);
+      color: #f3f2ed;
+      padding: 1.15rem 1.25rem 1.25rem;
+      margin: 0.6rem 0 1.3rem;
+      max-width: 70ch;
+    }
+    .repo-banner .kicker {
+      font-family: var(--mono); font-size: 11px;
+      letter-spacing: 0.04em; opacity: 0.8; margin: 0 0 0.25rem;
+    }
+    .repo-banner a.big {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #fff;
+      background: var(--saffron);
+      text-decoration: none;
+      padding: 0.45rem 0.7rem;
+      margin: 0.2rem 0 0.85rem;
+    }
+    .repo-banner a.big:hover { color: #fff; filter: brightness(1.08); }
+    .repo-banner p, .repo-banner li { color: #f3f2ed; max-width: none; }
+    .repo-banner p { margin: 0.35rem 0 0.7rem; }
+    .repo-banner ol { margin: 0.2rem 0 0.6rem; padding-left: 1.2rem; }
+    .repo-banner pre {
+      background: var(--navy-2);
+      border-color: #3d5a7a;
+      color: #e8eef4;
+      margin: 0.35rem 0 0.8rem;
+    }
+    .repo-banner .copy {
+      font: 500 11px var(--mono);
+      background: transparent;
+      color: #f3f2ed;
+      border: 1px solid #8aa0b8;
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+      margin-left: 0.4rem;
+    }
 
     .shell {
       display: grid;
@@ -243,7 +285,10 @@
       .shell { display: block; }
       main { max-width: none; padding: 0; }
       a { color: inherit; text-decoration: none; }
-      .note, .teach, .stop, .flow, .job { break-inside: avoid; }
+      .note, .teach, .stop, .flow, .job, .repo-banner { break-inside: avoid; }
+      .repo-banner { color: #1a2330; background: #eceae3; }
+      .repo-banner a.big { color: #1a2330; background: transparent; border: 1px solid #1a2330; }
+      .topbar a.repo { display: none; }
     }
   </style>
 </head>
@@ -262,6 +307,7 @@
     <nav class="toc" aria-label="Sections">
       <p>Contents</p>
       <a href="#start">Start here</a>
+      <a href="#github">GitHub repo</a>
       <a href="#picture">The one picture</a>
       <a href="#words">Words</a>
       <a href="#pipeline">Pipeline</a>
@@ -305,8 +351,33 @@
 
     <main>
       <h1 id="start">Team handbook</h1>
-      <p class="lede">Open this in a browser. Tick boxes as you go; they save on this computer. Follow <a href="#work">Work order</a> top to bottom. That is the actual job until 12 Sep. You are building a website that checks satellite files, sends the job to one specialist tool, and prints facts on a map.</p>
-      <p><span class="pill">PS SIH26167</span> <span class="pill">Software · Space</span> <span class="pill">ISRO</span> <span class="pill">Internal: PPT + 2 min video 10 Sep · present 12 Sep</span> <a class="pill" href="https://github.com/vekhyat/SIH26167" target="_blank" rel="noopener">Repo</a> <a class="pill" href="#work">Work order</a></p>
+      <p class="lede">This file is the briefing. The code and docs live in one GitHub repo. Use that repo for everything. Follow <a href="#work">Work order</a> after you can clone and open this page from the repo.</p>
+      <p><span class="pill">PS SIH26167</span> <span class="pill">Software · Space</span> <span class="pill">ISRO</span> <span class="pill">PPT + video 10 Sep · present 12 Sep</span></p>
+
+      <div class="repo-banner" id="github">
+        <p class="kicker">Team repository (bookmark this)</p>
+        <a class="big" href="https://github.com/vekhyat/SIH26167" target="_blank" rel="noopener">github.com/vekhyat/SIH26167</a>
+        <p>Public repo. All six members work here. Do not keep a private copy on Desktop as the source of truth.</p>
+        <ol>
+          <li><b>Open the link</b> in a browser. Ask M1 to add your GitHub username as a collaborator if you cannot push.</li>
+          <li><b>Clone once</b> (GitHub Desktop, or terminal):
+            <pre id="clone-cmd">git clone https://github.com/vekhyat/SIH26167.git
+cd SIH26167</pre>
+            <button type="button" class="copy" onclick="navigator.clipboard.writeText('git clone https://github.com/vekhyat/SIH26167.git')">Copy clone command</button>
+          </li>
+          <li><b>Open the handbook</b> from the clone: double-click <code>handbook.html</code>. That is this page. Ticks save in your browser, not in git.</li>
+          <li><b>Every time you sit down:</b> <code>git pull</code> so you have everyone else’s work.</li>
+          <li><b>Do your job</b> in the folders from work order. Then:
+            <pre>git add .
+git status
+git commit -m "M2: slider for before/after"
+git push</pre>
+            Put your seat (M1-M6) in the message.
+          </li>
+          <li><b>Do not commit</b> GeoTIFF/TIFF, model weights, <code>.env</code>, or <code>TEAM_LEADER_BRIEF.md</code>. Those are gitignored on purpose.</li>
+        </ol>
+        <p>Files to read after clone: <code>handbook.html</code> (this), <code>ARCHITECTURE.md</code>, <code>TEAM_SPLIT.md</code>, <code>README.md</code>.</p>
+      </div>
 
       <div class="stop">
         <strong>If you remember one line</strong>
