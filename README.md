@@ -14,7 +14,6 @@ Open [`handbook.html`](handbook.html) in a browser. That is the team briefing: a
 |---|---|
 | `handbook.html` | Full handbook (use this) |
 | `ARCHITECTURE.md` | System map |
-| `TEAM_LEADER_BRIEF.md` | Leader brief |
 | `TEAM_SPLIT.md` | Six-person split |
 | `plan.md` | Longer technical plan |
 
