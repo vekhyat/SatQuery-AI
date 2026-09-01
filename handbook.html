@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SatQuery AI · Team handbook · SIH26167</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a2330;
+      --muted: #4a5564;
+      --paper: #f3f2ed;
+      --paper-2: #e7e5dc;
+      --navy: #1e3a5f;
+      --navy-2: #16304d;
+      --saffron: #c45c12;
+      --teal: #1a6b63;
+      --line: #c9c4b6;
+      --ok: #1a6b63;
+      --bad: #9b2c2c;
+      --code: #f7f5ef;
+      --radius: 3px;
+      --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+      --toc: 15.5rem;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { animation: none !important; transition: none !important; }
+    }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.55;
+      font-size: 17px;
+    }
+    ::selection { background: #f3d2b3; color: var(--ink); }
+    a { color: var(--navy); text-underline-offset: 3px; }
+    a:hover { color: var(--saffron); }
+    :focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+      padding: 0.7rem 1.2rem;
+      background: var(--navy);
+      color: #f3f2ed;
+      border-bottom: 3px solid var(--saffron);
+    }
+    .topbar strong { font-weight: 600; letter-spacing: -0.02em; }
+    .topbar span.meta { font-family: var(--mono); font-size: 12px; opacity: 0.85; }
+    .topbar .grow { flex: 1; }
+    .prog {
+      font-family: var(--mono); font-size: 12px;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .bar { width: 7rem; height: 6px; background: #2c4a70; }
+    .bar > i { display: block; height: 100%; width: 0; background: var(--saffron); }
+    .topbar button {
+      font: 500 12px var(--mono);
+      background: transparent;
+      color: #f3f2ed;
+      border: 1px solid #8aa0b8;
+      padding: 0.35rem 0.6rem;
+      cursor: pointer;
+    }
+    .topbar button:hover { border-color: #f3f2ed; }
+    .topbar a.repo {
+      font: 500 12px var(--mono);
+      color: #f3f2ed;
+      text-decoration: none;
+      border: 1px solid #8aa0b8;
+      padding: 0.35rem 0.6rem;
+    }
+    .topbar a.repo:hover { border-color: #f3f2ed; color: #f3f2ed; }
+
+    .shell {
+      display: grid;
+      grid-template-columns: var(--toc) 1fr;
+      min-height: 100dvh;
+    }
+    nav.toc {
+      position: sticky; top: 48px; align-self: start;
+      height: calc(100dvh - 48px);
+      overflow: auto;
+      padding: 1.2rem 0.9rem 2rem;
+      border-right: 1px solid var(--line);
+      background: #eceae3;
+      font-size: 13.5px;
+    }
+    nav.toc p {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--muted); margin: 0 0 0.6rem;
+    }
+    nav.toc a {
+      display: block;
+      color: var(--ink);
+      text-decoration: none;
+      padding: 0.28rem 0.4rem;
+      border-left: 2px solid transparent;
+    }
+    nav.toc a:hover, nav.toc a.active {
+      border-left-color: var(--saffron);
+      background: #f3f2ed;
+    }
+    nav.toc a.sub { padding-left: 0.9rem; color: var(--muted); }
+
+    main { padding: 1.6rem 2rem 5rem; max-width: 52rem; }
+    h1 { font-size: 2.15rem; letter-spacing: -0.03em; line-height: 1.15; margin: 0 0 0.4rem; }
+    h2 {
+      font-size: 1.45rem; letter-spacing: -0.02em;
+      margin: 2.6rem 0 0.7rem; padding-top: 0.4rem;
+      border-top: 1px solid var(--line);
+    }
+    h2:first-of-type { border-top: 0; margin-top: 0.4rem; }
+    h3 { font-size: 1.12rem; margin: 1.6rem 0 0.45rem; }
+    p { margin: 0.55rem 0 0.85rem; max-width: 68ch; }
+    .lede { font-size: 1.12rem; color: var(--navy); max-width: 62ch; }
+    ul, ol { max-width: 68ch; }
+    li { margin: 0.28rem 0; }
+    code, .mono { font-family: var(--mono); font-size: 0.86em; }
+    pre {
+      font-family: var(--mono); font-size: 12.5px; line-height: 1.45;
+      background: var(--code);
+      border: 1px solid var(--line);
+      padding: 0.85rem 1rem;
+      overflow: auto;
+      max-width: 100%;
+    }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 14.5px; margin: 0.8rem 0 1.2rem;
+    }
+    th, td {
+      text-align: left; vertical-align: top;
+      padding: 0.45rem 0.55rem;
+      border-bottom: 1px solid var(--line);
+    }
+    th { font-weight: 600; background: var(--paper-2); }
+    .note, .teach, .stop {
+      padding: 0.85rem 1rem; margin: 1rem 0 1.2rem;
+      border: 1px solid var(--line);
+      max-width: 70ch;
+    }
+    .note { background: #efece3; }
+    .teach { background: #e4eeeb; border-color: #b7cfc9; }
+    .stop { background: #f6e8e4; border-color: #e0b8ae; }
+    .note strong, .teach strong, .stop strong { display: block; margin-bottom: 0.25rem; }
+    .flow {
+      display: grid; gap: 0;
+      margin: 1rem 0 1.4rem;
+      border: 1px solid var(--line);
+    }
+    .flow .step {
+      display: grid;
+      grid-template-columns: 5.5rem 1fr;
+      border-bottom: 1px solid var(--line);
+      background: #faf9f5;
+    }
+    .flow .step:last-child { border-bottom: 0; }
+    .flow .who {
+      font-family: var(--mono); font-size: 11px;
+      background: var(--navy); color: #f3f2ed;
+      padding: 0.7rem 0.6rem;
+    }
+    .flow .who small { display: block; opacity: 0.7; font-size: 10px; }
+    .flow .what { padding: 0.65rem 0.85rem; font-size: 15px; }
+    .flow .what b { display: block; }
+    .checks { margin: 0.6rem 0 1.2rem; }
+    .checks label {
+      display: flex; gap: 0.55rem; align-items: flex-start;
+      padding: 0.32rem 0;
+      max-width: 70ch;
+      cursor: pointer;
+    }
+    .checks input { margin-top: 0.3rem; accent-color: var(--teal); }
+    .pill {
+      display: inline-block;
+      font-family: var(--mono); font-size: 11px;
+      padding: 0.1rem 0.4rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+    }
+    .grid2 {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+      margin: 0.8rem 0 1.2rem;
+    }
+    h4 { font-size: 0.98rem; margin: 1rem 0 0.35rem; }
+    .job {
+      border: 1px solid var(--line);
+      margin: 0 0 1.35rem;
+      background: #faf9f5;
+      max-width: 70ch;
+    }
+    .job-head {
+      display: grid;
+      grid-template-columns: 3.4rem 1fr auto;
+      align-items: center;
+      background: var(--navy);
+      color: #f3f2ed;
+    }
+    .job-n {
+      font-family: var(--mono); font-size: 13px;
+      padding: 0.7rem 0.55rem;
+      background: var(--navy-2);
+      text-align: center;
+    }
+    .job-t { padding: 0.65rem 0.8rem; font-weight: 600; font-size: 1rem; }
+    .job-m {
+      font-family: var(--mono); font-size: 11px;
+      padding: 0.65rem 0.8rem; opacity: 0.9;
+      white-space: nowrap;
+    }
+    .job-body { padding: 0.75rem 1rem 0.9rem; }
+    .job-body p { margin: 0.4rem 0 0.7rem; }
+    .job-body ol { margin: 0.3rem 0 0.8rem; padding-left: 1.2rem; }
+    .done {
+      font-family: var(--mono); font-size: 12.5px; line-height: 1.45;
+      background: #e4eeeb; border: 1px solid #b7cfc9;
+      padding: 0.55rem 0.7rem; margin: 0.5rem 0 0.7rem;
+    }
+    .dep { font-size: 14px; color: var(--muted); }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      nav.toc {
+        position: relative; top: 0; height: auto;
+        border-right: 0; border-bottom: 1px solid var(--line);
+      }
+      main { padding: 1.1rem 1rem 4rem; }
+      .grid2 { grid-template-columns: 1fr; }
+      h1 { font-size: 1.7rem; }
+      .job-head { grid-template-columns: 3rem 1fr; }
+      .job-m { grid-column: 1 / -1; padding-top: 0; }
+    }
+    @media print {
+      .topbar, nav.toc { display: none; }
+      .shell { display: block; }
+      main { max-width: none; padding: 0; }
+      a { color: inherit; text-decoration: none; }
+      .note, .teach, .stop, .flow, .job { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <strong>SatQuery AI</strong>
+    <span class="meta">SIH26167 · ISRO · handbook</span>
+    <span class="grow"></span>
+    <a class="repo" href="https://github.com/vekhyat/SIH26167" target="_blank" rel="noopener">github.com/vekhyat/SIH26167</a>
+    <div class="prog">checklist <div class="bar"><i id="barfill"></i></div> <span id="bartext">0%</span></div>
+    <button type="button" onclick="window.print()">Print</button>
+    <button type="button" onclick="resetChecks()">Reset ticks</button>
+  </div>
+
+  <div class="shell">
+    <nav class="toc" aria-label="Sections">
+      <p>Contents</p>
+      <a href="#start">Start here</a>
+      <a href="#picture">The one picture</a>
+      <a href="#words">Words</a>
+      <a href="#pipeline">Pipeline</a>
+      <a class="sub" href="#s-web">Website</a>
+      <a class="sub" href="#s-api">API</a>
+      <a class="sub" href="#s-check">Checker</a>
+      <a class="sub" href="#s-route">Router</a>
+      <a class="sub" href="#s-tools">Three tools</a>
+      <a class="sub" href="#s-compose">Composer</a>
+      <a href="#teach">Teaching</a>
+      <a class="sub" href="#t-rs">Remote sensing</a>
+      <a class="sub" href="#t-sar">Optical vs SAR</a>
+      <a class="sub" href="#t-geo">GeoTIFF</a>
+      <a class="sub" href="#t-vqa">VQA / caption</a>
+      <a class="sub" href="#t-ft">Fine-tune vs LoRA</a>
+      <a href="#vlm">Where a VLM sits</a>
+      <a href="#data">Datasets</a>
+      <a href="#team">Six people</a>
+      <a href="#work">Work order</a>
+      <a class="sub" href="#job0">0. Lock today</a>
+      <a class="sub" href="#job1">1. Repo</a>
+      <a class="sub" href="#job2">2. JSON contract</a>
+      <a class="sub" href="#job3">3. Demo files</a>
+      <a class="sub" href="#job4">4. Checker</a>
+      <a class="sub" href="#job5">5. Router + API</a>
+      <a class="sub" href="#job6">6. Tool 1</a>
+      <a class="sub" href="#job7">7. Tool 2</a>
+      <a class="sub" href="#job8">8. Tool 3</a>
+      <a class="sub" href="#job9">9. Composer</a>
+      <a class="sub" href="#job10">10. Website</a>
+      <a class="sub" href="#job11">11. Wire it</a>
+      <a class="sub" href="#job12">12. Overlays</a>
+      <a class="sub" href="#job13">13. PPT</a>
+      <a class="sub" href="#job14">14. Video</a>
+      <a class="sub" href="#job15">15. Upload + stage</a>
+      <a class="sub" href="#job16">16. After 12 Sep</a>
+      <a href="#plan">Calendar</a>
+      <a href="#demo">Demo + pitch</a>
+      <a href="#links">Links</a>
+    </nav>
+
+    <main>
+      <h1 id="start">Team handbook</h1>
+      <p class="lede">Open this in a browser. Tick boxes as you go; they save on this computer. Follow <a href="#work">Work order</a> top to bottom. That is the actual job until 12 Sep. You are building a website that checks satellite files, sends the job to one specialist tool, and prints facts on a map.</p>
+      <p><span class="pill">PS SIH26167</span> <span class="pill">Software · Space</span> <span class="pill">ISRO</span> <span class="pill">Internal: PPT + 2 min video 10 Sep · present 12 Sep</span> <a class="pill" href="https://github.com/vekhyat/SIH26167" target="_blank" rel="noopener">Repo</a> <a class="pill" href="#work">Work order</a></p>
+
+      <div class="stop">
+        <strong>If you remember one line</strong>
+        Website → Checker → Router → one of three tools → Composer → screen. The router is if-then code. A VLM, if you ever add one, lives only inside the single-image tool, after 12 Sep.
+      </div>
+
+      <h2 id="picture">The one picture</h2>
+      <p>Same path every time. Only the tool room changes.</p>
+      <div class="flow">
+        <div class="step"><div class="who">M2<small>screen</small></div><div class="what"><b>Website</b> Three modes. Upload. Question. Map. Overlay. Receipt. Download.</div></div>
+        <div class="step"><div class="who">M1<small>code</small></div><div class="what"><b>API</b> <code>POST /upload</code> and <code>POST /query</code>. Returns JSON.</div></div>
+        <div class="step"><div class="who">M3<small>code</small></div><div class="what"><b>Checker</b> Read GeoTIFF headers. Same place? Optical or radar? Junk → stop and explain.</div></div>
+        <div class="step"><div class="who">M1<small>code</small></div><div class="what"><b>Router (the agent)</b> Pick one named tool. Write a JSON plan. That plan is the receipt judges see.</div></div>
+        <div class="step"><div class="who">M4 M5 M6<small>tools</small></div><div class="what"><b>Exactly one tool runs</b> Single-image, or change, or optical+SAR. Returns facts + optional mask. Not a chat.</div></div>
+        <div class="step"><div class="who">M1<small>code</small></div><div class="what"><b>Composer</b> Fill a sentence from those facts only. Cannot invent buildings.</div></div>
+        <div class="step"><div class="who">M2<small>screen</small></div><div class="what"><b>Report</b> Answer, overlay, confidence, receipt, JSON download.</div></div>
+      </div>
+
+      <h2 id="words">Words you will hear</h2>
+      <table>
+        <tr><th>Word</th><th>Meaning</th></tr>
+        <tr><td>Remote sensing</td><td>Pictures of Earth from satellites.</td></tr>
+        <tr><td>Optical / multispectral</td><td>Camera. Needs sunlight. Clouds hide the ground. Looks like a coloured photo, sometimes with extra bands (infrared).</td></tr>
+        <tr><td>SAR</td><td>Radar. Works at night and through clouds. Looks grainy. Measures structure, not colour.</td></tr>
+        <tr><td>Co-registered</td><td>Two images of the same place, pixels lined up so (100, 80) is the same spot on Earth.</td></tr>
+        <tr><td>Bi-temporal</td><td>Same place, two dates (before / after).</td></tr>
+        <tr><td>GeoTIFF</td><td>Image file that also stores map coordinates. Real satellite format.</td></tr>
+        <tr><td>VQA</td><td>Ask a question about the image, get an answer.</td></tr>
+        <tr><td>Captioning</td><td>Describe the scene in a sentence.</td></tr>
+        <tr><td>Grounding</td><td>Draw the region named in the text. Skip this until after 12 Sep.</td></tr>
+        <tr><td>Agent / agentic</td><td>Software that picks and runs a tool, then shows a receipt. Not a thinking chatbot.</td></tr>
+        <tr><td>Fine-tune</td><td>Continue training a pretrained model on your data.</td></tr>
+        <tr><td>LoRA</td><td>A cheap way to fine-tune: add small extra weights, freeze the original brain.</td></tr>
+        <tr><td>VLM</td><td>Model that reads an image and text together. Optional later, inside Tool 1 only.</td></tr>
+      </table>
+
+      <h2 id="pipeline">Pipeline, step by step</h2>
+      <p>Each step: what it is, what goes in, what comes out, who owns it, a teaching note, a checklist.</p>
+
+      <h3 id="s-web">1. Website</h3>
+      <p>This is the product the jury watches. Three buttons: Single image, Before/After, Optical+SAR. Upload, question box, Run. Then: preview, answer, overlay, confidence, tool receipt, download.</p>
+      <p><b>In:</b> files + question. <b>Out:</b> whatever JSON the API returned, drawn on screen. The website does not decide the answer.</p>
+      <div class="teach">
+        <strong>Teach</strong>
+        Use a map library if you can (<a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre</a>). For 12 Sep, an image viewer plus a slider is enough. The receipt panel is not decoration. ISRO said they score the visible execution summary, not hidden thinking.
+      </div>
+      <div class="checks" data-owner="M2">
+        <label><input type="checkbox" data-id="w1" /> Three mode buttons exist</label>
+        <label><input type="checkbox" data-id="w2" /> Upload + question + Run</label>
+        <label><input type="checkbox" data-id="w3" /> Answer, confidence, warnings render from JSON</label>
+        <label><input type="checkbox" data-id="w4" /> Receipt shows tool name and settings</label>
+        <label><input type="checkbox" data-id="w5" /> Before/after slider</label>
+        <label><input type="checkbox" data-id="w6" /> Optical / SAR / Fused toggle</label>
+        <label><input type="checkbox" data-id="w7" /> Download JSON</label>
+        <label><input type="checkbox" data-id="w8" /> Rejected pair shows the reason, no fake overlay</label>
+        <label><input type="checkbox" data-id="w9" /> Dummy JSON looks like the real product before the API is ready</label>
+      </div>
+
+      <h3 id="s-api">2. API</h3>
+      <p>Front door. FastAPI is enough. Two calls: upload files, then query. Everyone else talks JSON, not each other’s Python internals.</p>
+      <pre>{
+  "task": "single_image | change | optical_sar | reject",
+  "tools": ["checker_v1", "change_tool_v1"],
+  "parameters": { "threshold": 0.63 },
+  "facts": {},
+  "answer_text": "Built-up area increased (~12.4 ha).",
+  "confidence": 0.74,
+  "warnings": [],
+  "overlay": { "type": "change_mask", "file": "..." },
+  "receipt": { "why_this_tool": "two dated images + change question", "rejected": false }
+}</pre>
+      <p>M4, M5, M6 fill <code>facts</code>, <code>confidence</code>, <code>overlay</code>. M1 writes <code>answer_text</code>. M2 only displays.</p>
+      <div class="checks" data-owner="M1">
+        <label><input type="checkbox" data-id="a1" /> Repo + README + gitignore (no huge TIFFs)</label>
+        <label><input type="checkbox" data-id="a2" /> Pydantic schema published to the group</label>
+        <label><input type="checkbox" data-id="a3" /> POST /upload and POST /query exist</label>
+        <label><input type="checkbox" data-id="a4" /> Postman/curl can run all 3 modes + reject without the UI</label>
+      </div>
+
+      <h3 id="s-check">3. Checker</h3>
+      <p>Reads the file like a customs officer. If the pair is not the same place, it stops. Guessing alignment is how you fail the “trustworthy” test.</p>
+      <p>Look at: format, width/height, band count, data type, CRS (map projection), bounds, transform, nodata, dates if present. Optical vs SAR: from metadata or band pattern. If unsure, ask the user. Do not silently treat radar as RGB.</p>
+      <div class="teach">
+        <strong>Teach: GeoTIFF</strong>
+        A normal JPEG is a grid of colours. A GeoTIFF is that grid plus “this pixel is this place on Earth.” CRS tells you which map system (often EPSG:4326 lat/long, or a UTM zone). Affine transform maps pixel (x, y) to map (east, north). Two images are a pair only if bounds and grid match, or you have a logged, reversible resample. Library: <a href="https://rasterio.readthedocs.io/" target="_blank" rel="noopener">rasterio</a> (wraps GDAL).
+      </div>
+      <div class="checks" data-owner="M3">
+        <label><input type="checkbox" data-id="c1" /> Script prints size, bands, CRS, bounds, dates</label>
+        <label><input type="checkbox" data-id="c2" /> Pair test: same place / not same place</label>
+        <label><input type="checkbox" data-id="c3" /> PNG previews for the UI</label>
+        <label><input type="checkbox" data-id="c4" /> Four demo packs collected (see plan)</label>
+      </div>
+
+      <h3 id="s-route">4. Router (this is the agent)</h3>
+      <p>If-then. Not a trained model. ISRO’s word “agentic” means: interpret the request, pick a tool from a fixed menu, run it, show the receipt. They said hidden chain-of-thought is not scored.</p>
+      <pre>if files invalid                     → reject
+if 1 image                          → single_image
+if 2 images, different dates        → change
+if 1 optical + 1 SAR, same place    → optical_sar
+if question does not match files    → reject and explain</pre>
+      <div class="stop">
+        <strong>Do not train a router LLM</strong>
+        You do not need a model that “configures roles.” The jobs are known. A JSON plan is the whole brain.
+      </div>
+      <div class="checks" data-owner="M1">
+        <label><input type="checkbox" data-id="r1" /> Rules above implemented</label>
+        <label><input type="checkbox" data-id="r2" /> Plan JSON always returned, including rejects</label>
+        <label><input type="checkbox" data-id="r3" /> Router cannot call a name outside the registry</label>
+      </div>
+
+      <h3 id="s-tools">5. The three tools</h3>
+      <p>Only place “AI” is allowed. Each tool is a function: images in, JSON facts out. Same door so the composer does not care which room ran.</p>
+
+      <h3>Tool 1 · Single image (M4) · Scene 1</h3>
+      <p>Question to lock: <i>Describe the land-cover and major objects visible in this image.</i></p>
+      <p>Simplest version: land-cover scores (water, forest, urban, crop…) then a template caption: “This scene contains: water, forest.” VQA “is there water?” is just checking the water score. A heatmap is optional.</p>
+      <p>This is also the only room where a fine-tuned VLM may sit later. Today it can be a classifier or even a stub that is correct on the chosen demo image.</p>
+      <div class="checks" data-owner="M4">
+        <label><input type="checkbox" data-id="t11" /> Function signature matches the shared schema</label>
+        <label><input type="checkbox" data-id="t12" /> Scene 1 image always returns the same JSON in under 10s</label>
+        <label><input type="checkbox" data-id="t13" /> Caption is built from labels, not free chat</label>
+      </div>
+
+      <h3>Tool 2 · Change (M5) · Scene 2, hero</h3>
+      <p>Question to lock: <i>Has the built-up area increased, decreased, or remained unchanged?</i></p>
+      <p>Simplest version: M3 already confirmed alignment. Subtract (or compare) the two images, threshold, paint changed pixels red, count area, emit increased / decreased / unchanged. Do not paste two screenshots into a chatbot.</p>
+      <div class="teach">
+        <strong>Teach: image differencing</strong>
+        If pixel values are comparable, |after - before| is large where the ground changed. Threshold that map, you get a mask. Convert pixel count × pixel size (from GeoTIFF transform) to hectares. Noise will fire on clouds and season. For 12 Sep pick a pair where the change is obvious (new buildings, a river shift). Later you can swap in a dual-encoder change network. Same JSON.
+      </div>
+      <div class="checks" data-owner="M5">
+        <label><input type="checkbox" data-id="t21" /> Mask PNG/TIF produced</label>
+        <label><input type="checkbox" data-id="t22" /> answer_key is one of increased | decreased | unchanged</label>
+        <label><input type="checkbox" data-id="t23" /> Scene 2 never fails on the frozen pair</label>
+      </div>
+
+      <h3>Tool 3 · Optical + SAR (M6) · Scene 3</h3>
+      <p>Question to lock: <i>Use the optical and SAR images together to identify built-up and water-covered regions.</i></p>
+      <p>Simplest version: a map from optical, a map from SAR, a combine rule (e.g. water if either says water, useful under cloud). UI toggle must show fused ≠ optical-only, or judges will say you ignored radar.</p>
+      <div class="checks" data-owner="M6">
+        <label><input type="checkbox" data-id="t31" /> optical_only, sar_only, fused all present</label>
+        <label><input type="checkbox" data-id="t32" /> Toggle on the UI shows they differ</label>
+        <label><input type="checkbox" data-id="t33" /> One sentence on what SAR added (e.g. water under cloud)</label>
+      </div>
+
+      <h3 id="s-compose">6. Composer and report</h3>
+      <p>Code. If a fact is missing from JSON, it cannot appear in the sentence. Optional later: a small rewriter that may only polish grammar. Never let it look at the pixels and add objects.</p>
+      <div class="checks" data-owner="M1">
+        <label><input type="checkbox" data-id="p1" /> Template sentences for the 3 modes + reject</label>
+        <label><input type="checkbox" data-id="p2" /> JSON download contains answer, overlay path, receipt</label>
+      </div>
+
+      <h2 id="teach">Teaching: the ideas behind the boxes</h2>
+
+      <h3 id="t-rs">Why this problem exists</h3>
+      <p>ISRO and state agencies use satellite pictures for floods, farms, cities, forests, water. Today each AI tool does one job, and you need GIS skill to pick the model. A district officer cannot upload a file and ask in English. One optical photo is often not enough: clouds, night, and “what changed” need radar and a second date.</p>
+      <p>ISRO’s named product is SatQuery AI: an interactive assistant for single and paired remote-sensing images through text queries. Single-image Q&amp;A is the baseline. The centre of gravity is paired work (before/after and optical+SAR). A generic LLM/VLM without satellite adaptation does not satisfy the statement.</p>
+      <p>Official listing (scraped copy): <a href="https://github.com/vedantchalke36/sih-2026-problem-statements/blob/main/ps_2026/SIH26167.md" target="_blank" rel="noopener">SIH26167 markdown</a>. Portal: <a href="https://www.sih.gov.in/" target="_blank" rel="noopener">sih.gov.in</a>.</p>
+
+      <h3 id="t-sar">Optical vs SAR</h3>
+      <table>
+        <tr><th></th><th>Optical (Sentinel-2, Cartosat)</th><th>SAR (Sentinel-1, RISAT)</th></tr>
+        <tr><td>How it sees</td><td>Sunlight reflected</td><td>Radar pulse bounced back</td></tr>
+        <tr><td>Night</td><td>No</td><td>Yes</td></tr>
+        <tr><td>Clouds</td><td>Blocked</td><td>Mostly sees through</td></tr>
+        <tr><td>Looks like</td><td>A photo</td><td>Speckled grey</td></tr>
+        <tr><td>Good for</td><td>Colour, vegetation, context</td><td>Water, structure, all-weather</td></tr>
+      </table>
+      <p>If you convert SAR to a fake RGB and feed the same network you used for photos, you are treating radar as a camera. Preprocess them separately. That is why Tool 3 has two stems, even if each stem is simple.</p>
+      <p>Sentinel overview: <a href="https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-1" target="_blank" rel="noopener">Sentinel-1</a>, <a href="https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2" target="_blank" rel="noopener">Sentinel-2</a>.</p>
+
+      <h3 id="t-geo">GeoTIFF, CRS, bands</h3>
+      <p>Band = one channel. RGB is 3 bands. Sentinel-2 has more (red-edge, NIR…). SAR often has polarisations (VV, VH) as bands. “Stretch” means turning raw numbers into something visible (percentile stretch, not a phone auto-filter).</p>
+      <p>Pixel (i, j) → map coordinates using the affine transform. Your overlay must be converted back so it sits on the original image. If you skip this, the red blob is in the wrong valley.</p>
+      <p>Docs: <a href="https://gdal.org/en/stable/drivers/raster/gtiff.html" target="_blank" rel="noopener">GDAL GeoTIFF</a>, <a href="https://rasterio.readthedocs.io/en/stable/quickstart.html" target="_blank" rel="noopener">rasterio quickstart</a>.</p>
+
+      <h3 id="t-vqa">VQA, captioning, grounding</h3>
+      <ul>
+        <li><b>VQA:</b> question in, short answer out. Mandatory.</li>
+        <li><b>Captioning:</b> one description. Pick this as your extra single-image task. Easier than grounding.</li>
+        <li><b>Grounding:</b> “highlight the water body.” A box or mask. Stretch goal after 12 Sep.</li>
+      </ul>
+      <p>Classic RSVQA (2018) did this without ChatGPT: CNN on the image, language encoder on the question, fuse, classify the answer. That is still a valid Tool 1. A VLM is a heavier way to do the same job.</p>
+      <p>RSVQA paper: <a href="https://arxiv.org/abs/1911.07747" target="_blank" rel="noopener">arXiv:1911.07747</a>. VRSBench: <a href="https://vrsbench.github.io/" target="_blank" rel="noopener">vrsbench.github.io</a>.</p>
+
+      <h3 id="t-ft">Fine-tuning, adapters, LoRA</h3>
+      <p>You need this vocabulary for the finale and for slide 3. You do not run it this week.</p>
+
+      <p><b>Pretrained model.</b> Someone already trained a network on a huge pile of images or text. You start there instead of from random numbers.</p>
+      <p><b>Training from scratch.</b> Random weights, your dataset only. Slow, needs a lot of data. Skip.</p>
+      <p><b>Full fine-tune.</b> Take the pretrained model and update <i>every</i> weight on your satellite data. Needs a lot of GPU memory. Easy to overwrite the useful original knowledge. Usually more than a student team should do on a 7B VLM.</p>
+      <p><b>Freeze the backbone, train a head.</b> Keep the pretrained vision encoder still. Train only a small classifier on top (land-cover). This is the honest 12-Sep-plus path for Tool 1 if you skip VLMs.</p>
+      <p><b>LoRA (Low-Rank Adaptation).</b> Paper: <a href="https://arxiv.org/abs/2106.09685" target="_blank" rel="noopener">Hu et al., 2021</a>. You freeze the original weights W. Beside each big layer you add two tiny matrices A and B so the effective weight is W + B A. Only A and B train. Rank r (often 8 or 16) is how “wide” those stickers are. You store a small adapter file, not a copy of the whole model. At inference you can merge B A back into W.</p>
+      <p>Analogy: full fine-tune rewrites the textbook. LoRA adds sticky notes. The textbook stays. You can peel the notes off.</p>
+      <p><b>PEFT</b> is Hugging Face’s library that implements LoRA and cousins: <a href="https://huggingface.co/docs/peft" target="_blank" rel="noopener">huggingface.co/docs/peft</a>.</p>
+      <p><b>QLoRA</b> is LoRA on a 4-bit quantised model so it fits a smaller GPU: <a href="https://arxiv.org/abs/2305.14314" target="_blank" rel="noopener">arXiv:2305.14314</a>. Useful if you only have a 16 GB card later.</p>
+      <p><b>What ISRO actually requires.</b> “At least one visual or vision-language component must be fine-tuned or otherwise adapted” on BigEarthNet.txt or other open data. “Otherwise adapted” includes a land-cover classifier trained on BigEarthNet. A LoRA on a 1B VLM also counts. Training three VLMs does not match the architecture and will eat the demo.</p>
+      <p>The BigEarthNet.txt paper itself fine-tuned <b>InternVL-3-1B</b> with separate Sentinel-1 and Sentinel-2 stems, not a 13B chatbot. That is the size hint: <a href="https://arxiv.org/abs/2603.29630" target="_blank" rel="noopener">arXiv:2603.29630</a>.</p>
+
+      <div class="grid2">
+        <div class="note">
+          <strong>Do this week</strong>
+          Desk, checker, router, three demo tools, PPT, video. Maybe a tiny classifier if GPU appears after the pipeline is green.
+        </div>
+        <div class="note">
+          <strong>Do after nomination</strong>
+          M4: LoRA or classifier on BigEarthNet.txt for Tool 1. Keep JSON out. Router unchanged. Optional better change / fusion models in Tools 2 and 3.
+        </div>
+      </div>
+
+      <h2 id="vlm">Where a VLM fits</h2>
+      <p>Inside Tool 1, later. Not beside the router. Not as the composer. Not as three models.</p>
+      <pre>Website, Checker, Router, Composer     → always code
+Tool 1  now: classifier / stub
+        later: optional LoRA-tuned small VLM, still JSON out
+Tool 2  change comparison              → not a VLM
+Tool 3  two-sensor fusion              → not a VLM</pre>
+      <p>If a judge asks “where is the VLM?” say: there isn’t one in the architecture. Single-image Q&amp;A is a specialist tool. If we fine-tune a VLM it only replaces that tool. The desk stays code.</p>
+
+      <h2 id="data">Datasets (for later, plus tiny samples now)</h2>
+      <table>
+        <tr><th>Name</th><th>What it is</th><th>Use</th></tr>
+        <tr>
+          <td><a href="https://arxiv.org/abs/2603.29630" target="_blank" rel="noopener">BigEarthNet.txt</a></td>
+          <td>464k co-registered Sentinel-1 + Sentinel-2 patches, ~9.6M captions / VQA / referring text. HF: <a href="https://huggingface.co/datasets/BIFOLD-BigEarthNetv2-0/BigEarthNet.txt" target="_blank" rel="noopener">dataset card</a>. Images: <a href="https://bigearth.net/" target="_blank" rel="noopener">bigearth.net</a></td>
+          <td>Adapt Tool 1 (and optical-SAR features). Named by ISRO.</td>
+        </tr>
+        <tr>
+          <td><a href="https://vrsbench.github.io/" target="_blank" rel="noopener">VRSBench</a></td>
+          <td>Captions, grounding, VQA on remote-sensing images. Code: <a href="https://github.com/lx709/VRSBench" target="_blank" rel="noopener">github.com/lx709/VRSBench</a></td>
+          <td>Score single-image caption + VQA. Official test split: do not train on it.</td>
+        </tr>
+        <tr>
+          <td><a href="https://arxiv.org/abs/1911.07747" target="_blank" rel="noopener">RSVQA</a></td>
+          <td>Older satellite VQA benchmark.</td>
+          <td>Extra VQA numbers.</td>
+        </tr>
+        <tr>
+          <td>CDVQA</td>
+          <td>Change-detection visual questions on before/after pairs.</td>
+          <td>Score Tool 2 later.</td>
+        </tr>
+        <tr>
+          <td>ISRO/SAC hidden set</td>
+          <td>Cartosat-2S optical + RISAT SAR, labels not given to you.</td>
+          <td>Finale judging. Design the pipeline so any co-registered GeoTIFF pair can run.</td>
+        </tr>
+      </table>
+      <div class="stop">
+        <strong>This week</strong>
+        Do not download terabytes. M3 collects four small packs. PNG/JPEG only for official benchmark samples. Real path is GeoTIFF.
+      </div>
+
+      <h2 id="team">Six people</h2>
+      <table>
+        <tr><th>#</th><th>Seat</th><th>Owns</th><th>Does not own</th></tr>
+        <tr><td>M1 you</td><td>Desk + pitch</td><td>API, schema, router, composer, GitHub, talk, PPT story</td><td>Pretty UI, training</td></tr>
+        <tr><td>M2</td><td>Website</td><td>3-mode UI, overlays, receipt, drives laptop 12 Sep</td><td>Backend logic</td></tr>
+        <tr><td>M3</td><td>Checker + samples</td><td>GeoTIFF checks, four packs, backup laptop</td><td>Routing</td></tr>
+        <tr><td>M4</td><td>Tool 1</td><td>Single-image facts. Later: LoRA/classifier</td><td>Change, fusion</td></tr>
+        <tr><td>M5</td><td>Tool 2</td><td>Change mask + increased/decreased. Hero scene</td><td>UI</td></tr>
+        <tr><td>M6</td><td>Tool 3 + film</td><td>Optical/SAR/fused + 2-min video with M2</td><td>Router</td></tr>
+      </table>
+      <p>PPT: M1 words, M2/M6 on the official 6-slide template. Daily 20 min: can the 3 scenes run, yes or no.</p>
+
+      <h2 id="work">Work order: do these jobs in this order</h2>
+      <p>Do not start job 11 until jobs 3-10 exist, even as stubs. Jobs 6, 7, 8, and 10 can run in parallel after job 2. If 5 Sep is not green, freeze stubs and skip job 16.</p>
+      <div class="stop">
+        <strong>Not on this list until after 12 Sep</strong>
+        Fine-tuning a VLM. Training a router LLM. Downloading all of BigEarthNet. Grounding boxes. Beating VRSBench.
+      </div>
+
+      <article class="job" id="job0">
+        <div class="job-head"><div class="job-n">0</div><div class="job-t">Lock the team (one meeting, today)</div><div class="job-m">All six · 1 hour</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: nothing. Blocks everything else.</p>
+          <ol>
+            <li>Write real names next to M1-M6 in this handbook and in the group chat.</li>
+            <li>Team name: unique, no college name inside it.</li>
+            <li>Lock the three questions you will ask on stage (already written in Demo). Do not change them after 5 Sep.</li>
+            <li>Who speaks (M1) and who drives the laptop (M2).</li>
+            <li>Who has a GPU / Colab. If nobody, that is fine for 12 Sep.</li>
+            <li>Honesty line if tools are stubs: “workflow is live, satellite training is the next milestone.” Everyone says the same sentence.</li>
+          </ol>
+          <p class="done">Done when: six names exist, three questions are frozen, speaker and driver are named.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s0a" /> Names filled</label>
+            <label><input type="checkbox" data-id="s0b" /> Team name chosen</label>
+            <label><input type="checkbox" data-id="s0c" /> Speaker + driver named</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job1">
+        <div class="job-head"><div class="job-n">1</div><div class="job-t">Create the repo</div><div class="job-m">M1 · 1-2 hours</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: job 0.</p>
+          <ol>
+            <li>Create a GitHub repo. Invite the other five.</li>
+            <li>Folders: <code>apps/web</code>, <code>apps/api</code>, <code>satquery/geospatial</code>, <code>satquery/agent</code>, <code>satquery/tools</code>, <code>demo/packs</code>, <code>docs</code>.</li>
+            <li><code>.gitignore</code>: <code>*.tif</code>, <code>*.tiff</code>, checkpoints, <code>.env</code>, <code>node_modules</code>, <code>__pycache__</code>. Keep only tiny sample files if needed, or store samples on Drive and git-ignore them.</li>
+            <li>README: how to run API and web in two commands.</li>
+            <li>Python 3.11 venv. <code>pip install fastapi uvicorn pydantic rasterio numpy pillow python-multipart</code>.</li>
+          </ol>
+          <p class="done">Done when: everyone can clone, create the venv, and see an empty FastAPI “ok” route.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s1a" /> Repo + invites</label>
+            <label><input type="checkbox" data-id="s1b" /> Folders + gitignore</label>
+            <label><input type="checkbox" data-id="s1c" /> venv + FastAPI hello</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job2">
+        <div class="job-head"><div class="job-n">2</div><div class="job-t">Publish the JSON contract</div><div class="job-m">M1 · 2 hours</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: job 1. M4, M5, M6, M2 cannot start for real without this.</p>
+          <p>Put this in <code>satquery/agent/schema.py</code> as Pydantic models. Paste the same JSON in the group chat. Nobody invents a parallel format.</p>
+          <pre>{
+  "task": "single_image | change | optical_sar | reject",
+  "tools": ["checker_v1"],
+  "parameters": {},
+  "facts": {},
+  "answer_text": "",
+  "confidence": 0.0,
+  "warnings": [],
+  "overlay": { "type": "none", "file": null },
+  "layers": {},
+  "receipt": {
+    "why_this_tool": "",
+    "rejected": false,
+    "reason": null
+  }
+}</pre>
+          <p>Rules: M4/M5/M6 only fill <code>facts</code>, <code>confidence</code>, <code>overlay</code> / <code>layers</code>. M1 fills <code>answer_text</code> and <code>receipt</code>. M2 only displays keys. If a key is missing, the UI shows a blank, it does not crash.</p>
+          <p class="done">Done when: the schema file is on main and every member has pasted a sample into a validator (or just Python <code>QueryResult.model_validate</code>).</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s2a" /> Pydantic models on main</label>
+            <label><input type="checkbox" data-id="s2b" /> Group chat has the example JSON</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job3">
+        <div class="job-head"><div class="job-n">3</div><div class="job-t">Collect four demo packs</div><div class="job-m">M3 · day 1-2</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: job 1. Needed by every tool and the video.</p>
+          <p>Keep files small (crop to a few km). Prefer GeoTIFF. PNG is allowed only if you cannot get GeoTIFF in time; label it as a preview. Sources: <a href="https://browser.dataspace.copernicus.eu/" target="_blank" rel="noopener">Copernicus Browser</a> (Sentinel-1 and Sentinel-2), or a few BigEarthNet patches.</p>
+          <ol>
+            <li><b>Pack A / Scene 1.</b> One optical image with visible water + vegetation or buildings. Write on a card the true caption you expect, e.g. “water, cropland, built-up.”</li>
+            <li><b>Pack B / Scene 2.</b> Two optical images, same place, different years, where built-up clearly grew (city edge, peri-urban). Note the years.</li>
+            <li><b>Pack C / Scene 3.</b> One optical (ideally partly cloudy) and one SAR of the same place, same-ish date. Water or built-up should be visible in SAR.</li>
+            <li><b>Pack D / Reject.</b> Two images that are obviously different cities or different sizes. This pack must fail the checker.</li>
+          </ol>
+          <p>Put them in <code>demo/packs/A</code> … <code>D</code> with a <code>README.txt</code> per pack: filenames, dates, expected answer, license.</p>
+          <p class="done">Done when: all four packs open on two laptops, and M4/M5/M6 know which files are theirs.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s3a" /> Pack A optical</label>
+            <label><input type="checkbox" data-id="s3b" /> Pack B before/after</label>
+            <label><input type="checkbox" data-id="s3c" /> Pack C optical + SAR</label>
+            <label><input type="checkbox" data-id="s3d" /> Pack D mismatch</label>
+            <label><input type="checkbox" data-id="s3e" /> README per pack with expected answer</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job4">
+        <div class="job-head"><div class="job-n">4</div><div class="job-t">Write the checker</div><div class="job-m">M3 · day 2-4</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: jobs 1-3. Used by the router before any tool runs.</p>
+          <ol>
+            <li>Script <code>inspect.py path</code> using rasterio. Print: width, height, band count, dtype, CRS, bounds, transform, nodata, any date tags.</li>
+            <li>Guess modality: many bands / RGB-like → optical. 1-2 bands, float, Sentinel-1-ish metadata → SAR. If unsure, return <code>unknown</code> and let the UI ask.</li>
+            <li>Function <code>pair_compatible(a, b)</code>: same CRS, bounds overlap almost fully, height/width close. If not, return <code>ok=False, reason="These images are not the same place (bounds differ)."</code></li>
+            <li>Function <code>preview(path) → png</code>: percentile stretch, save an 8-bit PNG the website can show. For SAR, log-scale then stretch so it is not a black square.</li>
+            <li>Tests: Pack A OK, Pack B pair OK, Pack C pair OK with modalities optical+SAR, Pack D reject.</li>
+          </ol>
+          <p class="done">Done when: one command prints OK or REJECT: reason for all four packs, and PNG previews exist.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s4a" /> inspect.py works on GeoTIFF</label>
+            <label><input type="checkbox" data-id="s4b" /> pair_compatible rejects Pack D</label>
+            <label><input type="checkbox" data-id="s4c" /> PNG previews for A, B, C</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job5">
+        <div class="job-head"><div class="job-n">5</div><div class="job-t">Router, registry, FastAPI</div><div class="job-m">M1 · day 2-5</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: jobs 2 and 4. Tools can be stubs at first.</p>
+          <ol>
+            <li><code>POST /upload</code>: save files to a job folder, run checker, return metadata + preview URLs + warnings.</li>
+            <li><code>POST /query</code>: body = job id + question text + mode the user clicked.</li>
+            <li>Router rules (code, not a model):
+              <ul>
+                <li>checker failed → task <code>reject</code>, no tool</li>
+                <li>1 image → <code>single_image</code></li>
+                <li>2 images, dates differ, pair OK → <code>change</code></li>
+                <li>1 optical + 1 SAR, pair OK → <code>optical_sar</code></li>
+                <li>mode vs files mismatch (user picked change but uploaded one file) → reject and explain</li>
+              </ul>
+            </li>
+            <li>Registry: a dict <code>{"single_image_v1": fn, "change_v1": fn, "optical_sar_v1": fn}</code>. Router may only call those keys.</li>
+            <li>Write <code>receipt</code> every time, including rejects.</li>
+            <li>Until tools exist, registry functions return hardcoded JSON for Pack A/B/C. That is allowed. Swap later without changing the API.</li>
+          </ol>
+          <p class="done">Done when: curl/Postman can upload Pack A, B, C, D and get schema-valid JSON, including a reject on D, with no UI.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s5a" /> /upload + /query live</label>
+            <label><input type="checkbox" data-id="s5b" /> Router rules match the list</label>
+            <label><input type="checkbox" data-id="s5c" /> Pack D returns rejected=true</label>
+            <label><input type="checkbox" data-id="s5d" /> Receipt always present</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job6">
+        <div class="job-head"><div class="job-n">6</div><div class="job-t">Tool 1: single image</div><div class="job-m">M4 · day 3-6</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: jobs 2 and 3. Parallel with jobs 7, 8, 10.</p>
+          <p>Locked question: <i>Describe the land-cover and major objects visible in this image.</i></p>
+          <ol>
+            <li>Function <code>run_single(image_path, question) → facts</code>.</li>
+            <li><b>Version for 12 Sep (pick the first that you can finish):</b>
+              <ul>
+                <li>Stub: if filename is Pack A, return the labels written on the pack card. Still produce a simple overlay (e.g. a colour stretch PNG). Honest on stage.</li>
+                <li>Better: rule-of-thumb on bands (NDWI for water, brightness for built-up). Return those labels + a coarse heatmap.</li>
+                <li>Best-if-time: a small pretrained land-cover model. Still JSON out. No chat.</li>
+              </ul>
+            </li>
+            <li>Caption template only: <code>"This scene contains: " + ", ".join(labels) + "."</code></li>
+            <li>If the question is “is there water?”, answer yes/no from the water label. That is VQA without a VLM.</li>
+            <li>Do not call an OpenAI/Gemini vision API. That is the thing ISRO forbade as the whole solution, and it needs internet on stage.</li>
+          </ol>
+          <p class="done">Done when: Pack A in, JSON out, same result twice, under 10 seconds, caption built from labels.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s6a" /> Function matches schema</label>
+            <label><input type="checkbox" data-id="s6b" /> Pack A is deterministic</label>
+            <label><input type="checkbox" data-id="s6c" /> No external chatbot API</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job7">
+        <div class="job-head"><div class="job-n">7</div><div class="job-t">Tool 2: before / after change</div><div class="job-m">M5 · day 3-6</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: jobs 2-4. Hero scene.</p>
+          <p>Locked question: <i>Has the built-up area increased, decreased, or remained unchanged?</i></p>
+          <ol>
+            <li>Assume checker already said the pair is aligned. If shapes differ by a few pixels, resize the second to the first and put a warning in JSON.</li>
+            <li>Read band 1 (or a grayscale of RGB). Compute <code>diff = abs(after - before)</code>.</li>
+            <li>Threshold (start at a percentile, e.g. top 10%). That binary map is the mask.</li>
+            <li>Count mask pixels. Multiply by pixel width × height from the GeoTIFF transform. Convert m² to hectares.</li>
+            <li>For the demo pair you <i>chose</i> because built-up grew, set <code>answer_key: "increased"</code>. Optionally compare mean brightness in the mask on after vs before so it is not a hardcoded word.</li>
+            <li>Save a red overlay PNG (mask painted on the after image).</li>
+            <li>Return facts: <code>answer_key</code>, <code>area_ha</code>, <code>class: "built-up"</code>, overlay file, confidence (start at 0.7 and lower it if the mask is noisy).</li>
+          </ol>
+          <p class="done">Done when: Pack B produces increased (or whatever is true), a red PNG, and an area number, every time.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s7a" /> Diff + threshold mask</label>
+            <label><input type="checkbox" data-id="s7b" /> Area in hectares</label>
+            <label><input type="checkbox" data-id="s7c" /> Red overlay on after-image</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job8">
+        <div class="job-head"><div class="job-n">8</div><div class="job-t">Tool 3: optical + SAR</div><div class="job-m">M6 · day 3-6</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: jobs 2-4.</p>
+          <p>Locked question: <i>Use the optical and SAR images together to identify built-up and water-covered regions.</i></p>
+          <ol>
+            <li>Make three PNG maps, even if crude:
+              <ul>
+                <li><code>optical_only</code>: water/built-up from the optical (colour / NDWI / brightness).</li>
+                <li><code>sar_only</code>: dark areas in SAR often water; bright texture often built-up. Threshold on a log-scaled SAR band.</li>
+                <li><code>fused</code>: e.g. water if either says water; built-up if either says built-up. Write the rule in the receipt.</li>
+              </ul>
+            </li>
+            <li>Facts must include a one-line <code>sar_contribution</code>, e.g. “SAR added water under cloud in the north-west.”</li>
+            <li>Fused must not be a copy of optical-only. If it is identical, change the pair or the rule. Judges will toggle.</li>
+          </ol>
+          <p class="done">Done when: Pack C returns three different-looking maps and a sentence about SAR.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s8a" /> Three layer PNGs</label>
+            <label><input type="checkbox" data-id="s8b" /> fused ≠ optical_only</label>
+            <label><input type="checkbox" data-id="s8c" /> sar_contribution sentence</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job9">
+        <div class="job-head"><div class="job-n">9</div><div class="job-t">Composer (sentence templates)</div><div class="job-m">M1 · few hours</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: job 2. Can be written before tools are smart.</p>
+          <ol>
+            <li>Single: <code>"Land cover: {labels}. {caption}"</code></li>
+            <li>Change: <code>"Built-up area {answer_key} between {d1} and {d2} (~{area_ha} ha). Confidence {confidence}."</code></li>
+            <li>Fusion: <code>"Built-up and water from optical + SAR. {sar_contribution}"</code></li>
+            <li>Reject: use <code>receipt.reason</code> only. No overlay.</li>
+            <li>If a field is missing, drop that clause. Never invent a number.</li>
+          </ol>
+          <p class="done">Done when: feeding the sample JSON from jobs 6-8 prints the four sentences above.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s9a" /> Four templates</label>
+            <label><input type="checkbox" data-id="s9b" /> Missing fields are omitted, not guessed</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job10">
+        <div class="job-head"><div class="job-n">10</div><div class="job-t">Website</div><div class="job-m">M2 · day 2-7</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: job 2. Use fake JSON on day 2. Switch the fetch URL to the API in job 11.</p>
+          <ol>
+            <li>Scaffold (Vite + React is fine). One page is enough.</li>
+            <li>Mode picker: Single image / Before + After / Optical + SAR. This sets how many file inputs (1 or 2).</li>
+            <li>File inputs, question text (pre-fill the locked question for that mode), Run button.</li>
+            <li>While waiting: disable Run, show “running checker → router → tool.”</li>
+            <li>Result panel: answer, confidence, warnings.</li>
+            <li><b>Receipt panel</b> always visible: task, tool names, parameters. Judges must see this.</li>
+            <li>Viewers:
+              <ul>
+                <li>Single: image + optional heatmap</li>
+                <li>Change: before/after slider (two images stacked, a range input clips one)</li>
+                <li>Fusion: three buttons Optical / SAR / Fused swapping the PNG</li>
+              </ul>
+            </li>
+            <li>Reject: big reason text, no map paint.</li>
+            <li>Download: the result JSON as a file.</li>
+            <li>Error: API down → “backend not running”, not a white screen.</li>
+          </ol>
+          <p class="done">Done when: pasting dummy JSON for all four paths looks like the real product, including slider and toggle.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s10a" /> Three modes + uploads</label>
+            <label><input type="checkbox" data-id="s10b" /> Receipt panel</label>
+            <label><input type="checkbox" data-id="s10c" /> Slider + three-way toggle</label>
+            <label><input type="checkbox" data-id="s10d" /> JSON download + reject state</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job11">
+        <div class="job-head"><div class="job-n">11</div><div class="job-t">Wire end-to-end (the 5 Sep bar)</div><div class="job-m">M1 + M2 · 3-5 Sep</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: jobs 3-10 existing, even as stubs.</p>
+          <ol>
+            <li>CORS on FastAPI for the web origin. Upload uses <code>multipart/form-data</code>.</li>
+            <li>Click through Pack A, B, C, D on the real UI. Fix crashes only.</li>
+            <li>Confirm the receipt text changes per mode.</li>
+            <li>Time each scene. If a tool takes more than ~15s, cache the result for that filename so the stage demo is instant. Label cached only if you would be asked; for internal, frozen packs are fine.</li>
+          </ol>
+          <p class="done">Done on 5 Sep when: one laptop runs API + web, and all four paths work without opening a code editor.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s11a" /> UI talks to live API</label>
+            <label><input type="checkbox" data-id="s11b" /> A, B, C, D all work</label>
+            <label><input type="checkbox" data-id="s11c" /> No crash on refresh</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job12">
+        <div class="job-head"><div class="job-n">12</div><div class="job-t">Make overlays look true</div><div class="job-m">M4 M5 M6 · 6-7 Sep</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: job 11 green. Do not add new modes.</p>
+          <ol>
+            <li>Stretch previews so they are not black or neon.</li>
+            <li>Red change mask should sit on the after image, not a separate mystery blob.</li>
+            <li>Fusion toggle must make a visible difference.</li>
+            <li>Lock composer wording so M1 can memorise it for the talk.</li>
+          </ol>
+          <p class="done">Done when: a faculty member who has never seen the repo understands Scene 2 in 20 seconds.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s12a" /> Previews readable</label>
+            <label><input type="checkbox" data-id="s12b" /> Mask aligned on after-image</label>
+            <label><input type="checkbox" data-id="s12c" /> Sentences locked</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job13">
+        <div class="job-head"><div class="job-n">13</div><div class="job-t">Official 6-slide PPT</div><div class="job-m">M1 words · M2/M6 layout · 6-9 Sep</div></div>
+        <div class="job-body">
+          <p class="dep">Download the official SIH template from the portal. Do not invent a seventh slide.</p>
+          <ol>
+            <li>Slide 1: SIH26167, full title, Space Technology, Software, team id, registered team name.</li>
+            <li>Slide 2: one sentence solution + four bullets (three input modes, checker, router, evidence+receipt). Uniqueness: specialist tools, not a chatbot.</li>
+            <li>Slide 3: flowchart Upload → Validate → Route → one tool → Compose → Report. Screenshot of the UI. Stack: React, FastAPI, rasterio, three tools.</li>
+            <li>Slide 4: feasible now (desk). Adaptation later (classifier or LoRA on BigEarthNet). Risks and mitigations (GPU, hallucination, SAR as RGB, bad pairs).</li>
+            <li>Slide 5: who uses it (NRSC, disaster cells, urban/water). Audit trail.</li>
+            <li>Slide 6: PS, BigEarthNet.txt, VRSBench, RSVQA, Sentinel, rasterio, MapLibre.</li>
+            <li>Export PDF. Max 6 slides. No paragraphs. Faculty glance on 9 Sep.</li>
+          </ol>
+          <p class="done">Done when: PDF opens, 6 slides, names spelled correctly, screenshot is the real UI.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s13a" /> Official template used</label>
+            <label><input type="checkbox" data-id="s13b" /> 6-slide PDF</label>
+            <label><input type="checkbox" data-id="s13c" /> Real screenshot, not a mock</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job14">
+        <div class="job-head"><div class="job-n">14</div><div class="job-t">2-minute video</div><div class="job-m">M1 voice · M2 screen · M6 edit · 8-9 Sep</div></div>
+        <div class="job-body">
+          <p class="dep">Depends on: job 11. Record after freeze.</p>
+          <ol>
+            <li>Write the script (already in Demo). M1 practises once with a timer.</li>
+            <li>1080p screen record. Cursor large. Receipt visible in every scene.</li>
+            <li>0:00-0:15 problem. 0:15-0:30 desk not chatbot. 0:30-1:50 A, B, C, D. 1:50-2:00 close.</li>
+            <li>No loud music. Voice over or live voice, one take is enough if clean.</li>
+            <li>Export mp4. Watch it once on a phone. If text is unreadable, zoom the UI and re-record.</li>
+          </ol>
+          <p class="done">Done when: the file is under 2:00, all four paths appear, and someone who was not in the room understands the product.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s14a" /> Script timed</label>
+            <label><input type="checkbox" data-id="s14b" /> Recording includes reject</label>
+            <label><input type="checkbox" data-id="s14c" /> Final mp4 under 2 minutes</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job15">
+        <div class="job-head"><div class="job-n">15</div><div class="job-t">Upload, backup, present</div><div class="job-m">All · 8-12 Sep</div></div>
+        <div class="job-body">
+          <ol>
+            <li><b>8 Sep:</b> freeze. No new features. Only crash fixes.</li>
+            <li><b>10 Sep:</b> upload PPT PDF + video wherever the college asked. Keep copies on Drive.</li>
+            <li>Copy <code>demo/packs</code> onto two laptops. Install Python deps on both. Note the exact run commands on a paper sticky.</li>
+            <li><b>11 Sep:</b> full dry run, 10 minutes, standing up, using the backup laptop once.</li>
+            <li><b>12 Sep script:</b>
+              <ul>
+                <li>0:00-1:30 M1: problem + “desk, not a chatbot”</li>
+                <li>1:30-6:00 M2 clicks A, B, C; M1 points at the receipt each time</li>
+                <li>6:00-7:00 Pack D reject</li>
+                <li>7:00-8:00 one-diagram architecture</li>
+                <li>8:00-10:00 questions. If they say VLM: “Router is code. Three tools. No chatbot.”</li>
+              </ul>
+            </li>
+          </ol>
+          <p class="done">Done when: files are uploaded, two laptops run the demo offline, and the 10 minute talk has been rehearsed once.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s15a" /> Feature freeze 8 Sep</label>
+            <label><input type="checkbox" data-id="s15b" /> PPT + video uploaded 10 Sep</label>
+            <label><input type="checkbox" data-id="s15c" /> Two laptops have packs + venv</label>
+            <label><input type="checkbox" data-id="s15d" /> Dry run done</label>
+          </div>
+        </div>
+      </article>
+
+      <article class="job" id="job16">
+        <div class="job-head"><div class="job-n">16</div><div class="job-t">After 12 Sep only (if nominated)</div><div class="job-m">M4 first, then M5/M6</div></div>
+        <div class="job-body">
+          <p>This is not internal-hackathon work. It is how VLM / LoRA fits: <b>inside Tool 1</b>, same JSON, same router.</p>
+          <ol>
+            <li>Download a <i>subset</i> of BigEarthNet.txt + matching S1/S2 patches. Freeze the official test split. Never train on it.</li>
+            <li>Train a land-cover head on BigEarthNet, <i>or</i> LoRA a small VLM (~1B, PEFT, rank 8-16) for caption + VQA.</li>
+            <li>Save config, seed, metrics, checkpoint. Plug into <code>single_image_v1</code>. UI does not change.</li>
+            <li>Then improve Tool 2 (pair model / CDVQA) and Tool 3 (two-stem fusion + optical-only vs SAR-only vs fused table).</li>
+          </ol>
+          <p class="done">Done later when: one adapted checkpoint beats its unadapted baseline on a held-out slice, and the app still calls the same function name.</p>
+          <div class="checks">
+            <label><input type="checkbox" data-id="s16a" /> Do not start this before the 12 Sep demo is frozen</label>
+          </div>
+        </div>
+      </article>
+
+      <h2 id="plan">Calendar (same jobs on a date grid)</h2>
+      <p>Today is 1 Sep. Upload is 10 Sep. Stage is 12 Sep. The numbered jobs above are the work. This grid is only dates. If 5 Sep is not green, cut tool quality, not the pipeline.</p>
+
+      <h3>1-2 Sep · contract</h3>
+      <div class="checks">
+        <label><input type="checkbox" data-id="d1" /> Real names written next to M1-M6</label>
+        <label><input type="checkbox" data-id="d2" /> GitHub repo live</label>
+        <label><input type="checkbox" data-id="d3" /> Schema from M1 in the group chat</label>
+        <label><input type="checkbox" data-id="d4" /> M3 proposes the 4 image packs</label>
+        <label><input type="checkbox" data-id="d5" /> M2 dummy UI with fake JSON</label>
+        <label><input type="checkbox" data-id="d6" /> M1 dummy /query</label>
+      </div>
+
+      <h3>3-5 Sep · first full run</h3>
+      <div class="checks">
+        <label><input type="checkbox" data-id="d7" /> UI talks to live API</label>
+        <label><input type="checkbox" data-id="d8" /> Checker rejects pack 4</label>
+        <label><input type="checkbox" data-id="d9" /> Tools return schema-valid JSON (stubs allowed)</label>
+        <label><input type="checkbox" data-id="d10" /> 5 Sep: scenes 1, 2, 3 + reject run end-to-end</label>
+      </div>
+
+      <h3>6-7 Sep · make it look true</h3>
+      <div class="checks">
+        <label><input type="checkbox" data-id="d11" /> Overlays visible (heatmap / red mask / dual maps)</label>
+        <label><input type="checkbox" data-id="d12" /> Composer sentences locked</label>
+        <label><input type="checkbox" data-id="d13" /> JSON download works</label>
+        <label><input type="checkbox" data-id="d14" /> PPT draft on official template</label>
+      </div>
+
+      <h3>8-10 Sep · freeze and upload</h3>
+      <div class="checks">
+        <label><input type="checkbox" data-id="d15" /> 8 Sep: freeze scenes, no new features</label>
+        <label><input type="checkbox" data-id="d16" /> Record 2-min video (M1 voice, M2 screen, M6 edit)</label>
+        <label><input type="checkbox" data-id="d17" /> 9 Sep: PPT PDF, faculty glance, 10 min rehearsal</label>
+        <label><input type="checkbox" data-id="d18" /> 10 Sep: upload PPT + video</label>
+      </div>
+
+      <h3>11-12 Sep · stage</h3>
+      <div class="checks">
+        <label><input type="checkbox" data-id="d19" /> Offline samples on two laptops</label>
+        <label><input type="checkbox" data-id="d20" /> Dry run of the 10 min script</label>
+        <label><input type="checkbox" data-id="d21" /> 12 Sep: M1 talks, M2 drives, point at the receipt every scene</label>
+      </div>
+
+      <h2 id="demo">Demo scenes and pitch</h2>
+      <table>
+        <tr><th>Scene</th><th>Ask</th><th>Must see</th></tr>
+        <tr><td>1 Single</td><td>Describe the land-cover and major objects.</td><td>Caption + labels + receipt</td></tr>
+        <tr><td>2 Change</td><td>Has built-up increased, decreased, or unchanged?</td><td>Slider, red overlay, number, confidence</td></tr>
+        <tr><td>3 Opt+SAR</td><td>Use both to find built-up and water.</td><td>Toggle; say what SAR added</td></tr>
+        <tr><td>Reject</td><td>Two different places</td><td>“Not the same place. I will not guess.”</td></tr>
+      </table>
+
+      <h3>2-minute video</h3>
+      <ol>
+        <li>0:00-0:15 Problem: siloed tools, clouds, change needs two dates.</li>
+        <li>0:15-0:30 Desk, not a chatbot. Checker, router, specialists, receipt.</li>
+        <li>0:30-1:50 Three scenes + reject, screen recording, receipt visible.</li>
+        <li>1:50-2:00 Close: one operational tool for ISRO’s three input types.</li>
+      </ol>
+
+      <h3>Official PPT (6 slides, their template, export PDF)</h3>
+      <ol>
+        <li>Title: SIH26167, full name, Space Technology, Software, team id, team name (no college in the name).</li>
+        <li>Solution: English questions on one image, before/after, optical+SAR. Evidence on the map. Manager picks a tool.</li>
+        <li>Technical: flowchart Upload → Validate → Route → Specialist → Fuse → Report. React, FastAPI, rasterio, specialist tools. Screenshot.</li>
+        <li>Feasibility: UI+router now. Adaptation later (classifier or LoRA on BigEarthNet). Risks: GPU, hallucination, SAR as RGB, bad pairs. Mitigations: stubs then swap, JSON-only answers, separate SAR path, reject.</li>
+        <li>Impact: NRSC/ISRO analysts, disaster cells, urban and water departments. Faster answers with an audit trail.</li>
+        <li>References: this PS, BigEarthNet.txt, VRSBench, RSVQA, Sentinel-1/2, rasterio, MapLibre.</li>
+      </ol>
+      <p>Template walkthrough (community): <a href="https://www.youtube.com/watch?v=R9vTqoAR5pg" target="_blank" rel="noopener">SIH 2026 PPT format</a>. Confirm the file on the SIH portal before you design off-template.</p>
+
+      <h3>If a judge says…</h3>
+      <table>
+        <tr><th>They say</th><th>You say</th></tr>
+        <tr><td>This is ChatGPT + upload</td><td>ChatGPT does not validate GeoTIFFs, distinguish SAR, align pairs, or emit a map mask. We route to specialists and show the receipt.</td></tr>
+        <tr><td>Where did you fine-tune a VLM?</td><td>The architecture is a desk. Adaptation is a later upgrade of Tool 1 (BigEarthNet). Internal demo proves the workflow. We will not lie about stubs.</td></tr>
+        <tr><td>Did you use both sensors?</td><td>Toggle optical / SAR / fused. Fused is not a copy of optical.</td></tr>
+        <tr><td>Unaligned pair?</td><td>Checker rejects. We do not silently warp.</td></tr>
+      </table>
+
+      <h2 id="links">Link shelf</h2>
+      <ul>
+        <li>Problem text: <a href="https://github.com/vedantchalke36/sih-2026-problem-statements/blob/main/ps_2026/SIH26167.md" target="_blank" rel="noopener">SIH26167.md</a></li>
+        <li>BigEarthNet.txt paper: <a href="https://arxiv.org/abs/2603.29630" target="_blank" rel="noopener">arXiv:2603.29630</a> · <a href="https://txt.bigearth.net/" target="_blank" rel="noopener">txt.bigearth.net</a></li>
+        <li>BigEarthNet images: <a href="https://bigearth.net/" target="_blank" rel="noopener">bigearth.net</a></li>
+        <li>HF dataset: <a href="https://huggingface.co/datasets/BIFOLD-BigEarthNetv2-0/BigEarthNet.txt" target="_blank" rel="noopener">BIFOLD-BigEarthNetv2-0/BigEarthNet.txt</a></li>
+        <li>VRSBench: <a href="https://vrsbench.github.io/" target="_blank" rel="noopener">site</a> · <a href="https://arxiv.org/abs/2406.12384" target="_blank" rel="noopener">paper</a></li>
+        <li>RSVQA: <a href="https://arxiv.org/abs/1911.07747" target="_blank" rel="noopener">arXiv:1911.07747</a></li>
+        <li>LoRA: <a href="https://arxiv.org/abs/2106.09685" target="_blank" rel="noopener">arXiv:2106.09685</a> · PEFT: <a href="https://huggingface.co/docs/peft/conceptual_guides/lora" target="_blank" rel="noopener">LoRA guide</a></li>
+        <li>QLoRA: <a href="https://arxiv.org/abs/2305.14314" target="_blank" rel="noopener">arXiv:2305.14314</a></li>
+        <li>rasterio: <a href="https://rasterio.readthedocs.io/" target="_blank" rel="noopener">docs</a> · MapLibre: <a href="https://maplibre.org/" target="_blank" rel="noopener">maplibre.org</a> · FastAPI: <a href="https://fastapi.tiangolo.com/" target="_blank" rel="noopener">fastapi.tiangolo.com</a></li>
+        <li>College SPOC guidelines: <a href="https://www.sih.gov.in/letters/SIH2026-Guidelines-College-SPOC.pdf" target="_blank" rel="noopener">PDF</a></li>
+      </ul>
+
+      <p class="mono" style="margin-top:2.5rem;font-size:12px;color:var(--muted);">SatQuery AI · SIH26167 · local handbook · ticks stored in this browser only</p>
+    </main>
+  </div>
+
+  <script>
+    const KEY = "satquery-handbook-v1";
+    function allBoxes() {
+      return Array.from(document.querySelectorAll("input[type=checkbox][data-id]"));
+    }
+    function load() {
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+      allBoxes().forEach((cb) => { cb.checked = !!saved[cb.dataset.id]; });
+      paint();
+    }
+    function save() {
+      const saved = {};
+      allBoxes().forEach((cb) => { saved[cb.dataset.id] = cb.checked; });
+      localStorage.setItem(KEY, JSON.stringify(saved));
+      paint();
+    }
+    function paint() {
+      const boxes = allBoxes();
+      const n = boxes.length;
+      const d = boxes.filter((b) => b.checked).length;
+      const pct = n ? Math.round((d / n) * 100) : 0;
+      document.getElementById("barfill").style.width = pct + "%";
+      document.getElementById("bartext").textContent = d + "/" + n;
+    }
+    function resetChecks() {
+      if (!confirm("Clear all ticks on this computer?")) return;
+      localStorage.removeItem(KEY);
+      allBoxes().forEach((cb) => { cb.checked = false; });
+      paint();
+    }
+    document.addEventListener("change", (e) => {
+      if (e.target.matches("input[type=checkbox][data-id]")) save();
+    });
+    const links = Array.from(document.querySelectorAll("nav.toc a"));
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting) return;
+        const id = en.target.id;
+        if (!id) return;
+        links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + id));
+      });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    document.querySelectorAll("h1[id], h2[id], h3[id]").forEach((h) => observer.observe(h));
+    load();
+  </script>
+</body>
+</html>
