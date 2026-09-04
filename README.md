@@ -10,12 +10,8 @@ Open [`handbook.html`](handbook.html) in a browser. That is the team briefing: a
 
 ## Docs in this repo
 
-| File | What it is |
-|---|---|
-| `handbook.html` | Full handbook (use this) |
-| `ARCHITECTURE.md` | System map |
-| `TEAM_SPLIT.md` | Six-person split |
-| `plan.md` | Longer technical plan |
+`handbook.html` is the complete team handbook, including the architecture,
+six-person work split, technical plan, checklists, and presentation guidance.
 
 ## What we are building
 
