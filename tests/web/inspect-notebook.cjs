@@ -1,10 +1,10 @@
-const { chromium } = require('../node_modules/@playwright/test');
+const { chromium } = require('../../apps/web/node_modules/@playwright/test');
 const path = require('node:path');
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto(process.env.SATQUERY_TEST_URL || 'http://127.0.0.1:5180', { waitUntil: 'networkidle' });
+  await page.goto(process.env.SATQUERY_TEST_URL || 'http://127.0.0.1:5173', { waitUntil: 'networkidle' });
   await page.screenshot({ path: path.join(__dirname, 'notebook-desktop.png'), fullPage: true });
   const desktopOverflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   await page.getByRole('button', { name: 'Swipe', exact: true }).click();

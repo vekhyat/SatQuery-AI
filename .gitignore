@@ -21,3 +21,7 @@ runtime/
 .idea/
 .vscode/
 TEAM_LEADER_BRIEF.md
+tests/web/fixtures/
+tests/web/*.png
+tests/web/*.json
+tests/web/*.log

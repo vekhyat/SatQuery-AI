@@ -1,158 +1,25 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, CircleHelp, CirclePlus, Download, FileCheck2, FlaskConical, GitBranch, Info, Layers2, Menu, Plus, Search, Trash2, UploadCloud, X, AlertTriangle } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, CircleHelp, CirclePlus, FlaskConical, GitBranch, Info, Layers2, Menu, Plus, Trash2, UploadCloud, X, AlertTriangle } from 'lucide-react';
 import { BorderBeam } from 'border-beam';
 import { ThinkingOrb } from 'thinking-orbs';
+import { FindingLeader } from './components/FindingLeader';
+import { Receipt } from './components/Receipt';
 import { SceneViewer } from './components/SceneViewer';
 import { checkHealth, queryScenes, uploadScene } from './lib/api';
 import { createDemoResult, createDemoScenes } from './lib/demo';
-import type { Mode, ResultEnvelope, Scene } from './lib/types';
-
-type Investigation = { id: string; title: string; source: 'demo' | 'local'; mode: Mode; question: string; scenes: Scene[]; result: ResultEnvelope | null; submittedQuestion?: string };
-type Pending = { id: string; file: File; modality: 'auto' | 'optical' | 'sar'; date: string };
-const MODES: Mode[] = ['single_image', 'change', 'optical_sar'];
-const MODE_NAMES: Record<Mode, string> = { single_image: 'Single image', change: 'Change detection', optical_sar: 'Optical + SAR' };
-const QUESTIONS: Record<Mode, string> = { single_image: 'Describe the land cover in this scene.', change: 'What changed along the river?', optical_sar: 'Compare the optical and SAR images.' };
-const TITLES: Record<Mode, string> = { single_image: 'A closer look at the landscape.', change: 'What changed along the river?', optical_sar: 'One landscape. Two perspectives.' };
-
-function sceneRoleLabel(scene: Scene, index: number, mode: Mode): string {
-  if (mode === 'change') return index === 0 ? 'Before' : 'After';
-  if (mode === 'optical_sar') return scene.modality === 'sar' ? 'SAR' : 'Optical';
-  if (scene.modality === 'sar') return 'SAR';
-  if (scene.modality === 'optical') return 'Optical';
-  return 'Scene';
-}
-
-function questionSuggestions(scenes: Scene[]): Mode[] {
-  if (scenes.length < 2) return ['single_image'];
-  const hasSar = scenes.some(item => item.modality === 'sar');
-  const hasOptical = scenes.some(item => item.modality === 'optical');
-  if (hasSar && hasOptical) return ['optical_sar'];
-  if (scenes.every(item => item.modality === 'optical')) return ['change'];
-  return ['single_image'];
-}
-
-function demoInvestigation(): Investigation {
-  return { id: 'demo', title: 'River corridor', source: 'demo', mode: 'change', question: QUESTIONS.change, scenes: createDemoScenes('change'), result: createDemoResult('change'), submittedQuestion: QUESTIONS.change };
-}
-
-function saveJson(data: unknown, name: string) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function receiptTrail(result: ResultEnvelope, demo: boolean): string {
-  return result.receipt.trace.map(step => {
-    if (step.stage === 'checker') return step.status === 'rejected' ? 'Rejected' : 'Checked';
-    if (step.stage === 'router') {
-      if (step.status === 'rejected' || result.task === 'reject') return 'Not routed';
-      return result.task === 'change' ? 'Change' : result.task === 'optical_sar' ? 'Optical + SAR' : 'Single image';
-    }
-    if (step.status === 'stub') return demo ? 'Illustrative' : 'Not connected';
-    if (step.status === 'rejected') return 'Rejected';
-    return 'Ran';
-  }).join(' · ');
-}
-
-function FindingLeader({ active }: { active: boolean }) {
-  const host = useRef<HTMLDivElement>(null);
-  const [path, setPath] = useState<string | null>(null);
-  const [end, setEnd] = useState<{ x: number; y: number } | null>(null);
-
-  useLayoutEffect(() => {
-    const root = host.current?.parentElement;
-    if (!active || !root) {
-      setPath(null);
-      setEnd(null);
-      return;
-    }
-    const measure = () => {
-      const pin = root.querySelector('[data-finding-pin]');
-      const target = root.querySelector('[data-finding-target]');
-      if (!pin || !target) {
-        setPath(null);
-        setEnd(null);
-        return;
-      }
-      const rb = root.getBoundingClientRect();
-      const pb = pin.getBoundingClientRect();
-      const tb = target.getBoundingClientRect();
-      const x1 = pb.left + pb.width / 2 - rb.left;
-      const y1 = pb.top + pb.height / 2 - rb.top;
-      const x2 = pb.left < tb.left ? tb.left - rb.left : tb.left + tb.width / 2 - rb.left;
-      const y2 = tb.top + tb.height / 2 - rb.top;
-      setPath(`M ${x1} ${y1} L ${x1} ${y2} L ${x2} ${y2}`);
-      setEnd({ x: x2, y: y2 });
-    };
-    measure();
-    const frame = window.requestAnimationFrame(measure);
-    const ro = new ResizeObserver(measure);
-    ro.observe(root);
-    root.addEventListener('click', measure);
-    root.addEventListener('input', measure);
-    window.addEventListener('resize', measure);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      ro.disconnect();
-      root.removeEventListener('click', measure);
-      root.removeEventListener('input', measure);
-      window.removeEventListener('resize', measure);
-    };
-  }, [active]);
-
-  if (!active) return <div ref={host} className="finding-leader-host" aria-hidden />;
-  return (
-    <div ref={host} className="finding-leader-host" aria-hidden>
-      {path && end ? (
-        <svg className="finding-leader">
-          <path d={path} />
-          <circle cx={end.x} cy={end.y} r="2.25" />
-        </svg>
-      ) : null}
-    </div>
-  );
-}
-
-function Receipt({ result, demo, busy, question }: { result: ResultEnvelope | null; demo: boolean; busy: boolean; question: string }) {
-  const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const definitions = [{ id: 'checker', title: 'Check inputs', subtitle: 'GeoTIFF validation', Icon: FileCheck2 }, { id: 'router', title: 'Choose tool', subtitle: 'Deterministic routing', Icon: GitBranch }, { id: 'tool', title: 'Inspect evidence', subtitle: 'Specialist analysis', Icon: Search }];
-  const selected = result?.task;
-  if (!result && !busy) return null;
-  return <section className={'receipt' + (open ? ' is-open' : '')} aria-label="Analysis receipt" aria-busy={busy}>
-    <button className="receipt-summary" type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      <span className="receipt-summary-title">Receipt</span>
-      <span className="receipt-trail">{busy ? 'Waiting for the API' : result ? receiptTrail(result, demo) : ''}</span>
-      <ChevronDown size={16} />
-    </button>
-    {open && <>
-      <div className="trace-flow">
-        {definitions.map(({ id, title, subtitle, Icon }, index) => {
-          const step = result?.receipt.trace.find(s => s.stage === id);
-          const status = busy ? 'Waiting' : !step ? 'Not run' : demo ? (result?.receipt.rejected && step.status === 'rejected' ? 'Rejected' : 'Demo') : step.status === 'ok' ? 'Passed' : step.status === 'stub' ? 'Not connected' : 'Rejected';
-          return <div className={'trace-column ' + (id === 'router' ? 'router-column' : '')} key={id}>
-            <button className={'trace-step ' + (expanded === id ? 'expanded ' : '') + (step?.status === 'rejected' ? 'rejected' : '')} type="button" disabled={!step || busy} onClick={() => setExpanded(expanded === id ? null : id)} aria-expanded={expanded === id}>
-              <span className="step-number">{index + 1}</span><Icon size={28} strokeWidth={1.5} />
-              <span className="step-copy"><strong>{title}</strong><small>{subtitle}</small></span>
-              <span className={'step-status status-' + step?.status}>{status}{step && !busy && <ChevronDown size={12} />}</span>
-            </button>
-            {id === 'router' && <div className="route-options" aria-label="Selected analysis route">{MODES.map(mode => <span key={mode} className={selected === mode ? 'selected' : ''}><i />{mode === 'single_image' ? 'Single image' : mode === 'change' ? 'Change' : 'Optical + SAR'}</span>)}</div>}
-          </div>;
-        })}
-      </div>
-      {expanded && result && <div className="trace-detail"><strong>{definitions.find(d => d.id === expanded)?.title}</strong><p>{result.receipt.trace.find(s => s.stage === expanded)?.message}</p><pre>{JSON.stringify(result.receipt.trace.find(s => s.stage === expanded)?.details ?? {}, null, 2)}</pre></div>}
-      {result && <details className="receipt-details"><summary>Why this tool? <ChevronDown size={14} /></summary><p>{result.receipt.why_this_tool}</p><dl><dt>Tools</dt><dd>{result.tools.join(', ') || 'No tool selected'}</dd><dt>Parameters</dt><dd><pre>{JSON.stringify(result.parameters, null, 2)}</pre></dd></dl></details>}
-    </>}
-    <div className="receipt-footer">
-      <span><Info size={15} />{demo || result?.receipt.trace.some(s => s.status === 'stub') || result?.receipt.rejected ? 'Confidence: not measured' : result ? `Confidence: ${Math.round(result.confidence * 100)}%` : 'Confidence: not measured'}{demo ? ' · No image analysis performed' : result?.receipt.trace.some(s => s.status === 'stub') ? ' · Analysis not connected' : ''}</span>
-      <div className="export-actions">
-        <button className="text-button" type="button" disabled={!result || busy} aria-label="Download JSON" onClick={() => saveJson(result, 'satquery-result.json')}><Download size={15} />JSON</button>
-        <button className="button primary" type="button" disabled={!result || busy} onClick={() => saveJson({ source: demo ? 'illustrative_demo' : 'api', question, receipt: result?.receipt, tools: result?.tools, parameters: result?.parameters, warnings: result?.warnings }, 'satquery-receipt.json')}><Download size={16} />Export receipt</button>
-      </div>
-    </div>
-  </section>;
-}
+import {
+  demoInvestigation,
+  MODE_NAMES,
+  MODES,
+  QUESTIONS,
+  TITLES,
+  questionSuggestions,
+  sceneRoleLabel,
+  type Investigation,
+  type Pending,
+} from './lib/notebook';
+import type { Mode, ResultEnvelope } from './lib/types';
 
 export default function App() {
   const [investigations, setInvestigations] = useState<Investigation[]>(() => [demoInvestigation()]);

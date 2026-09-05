@@ -1,6 +1,6 @@
 # SatQuery AI design system
 
-Approved source: `design-mockups/C-query-notebook.png`. Implementation: `apps/web/src/App.tsx`. React with Python is the user's final stack choice.
+Source of truth: the shipped Query Notebook in `apps/web`. React with Python is the stack.
 
 ## Identity
 
@@ -16,7 +16,7 @@ Query Notebook joins the question, satellite imagery, and evidence receipt in on
 
 ## Composition and behavior
 
-70px desktop header, 252–280px sidebar, fluid notebook with 24–42px margins. Sequence: heading, question, read-only route status, viewer controls, imagery, answer, collapsed receipt. The API chooses the route; indicators must never become manual mode selectors. Attach lives in the sidebar so it never sits between the question and the scene.
+70px desktop header, 252–280px sidebar, fluid notebook with 24–42px margins. Sequence: heading, question, read-only route status, viewer controls, imagery, answer, collapsed receipt. The API chooses the route; indicators must never become manual mode selectors. A new investigation shows a large Add scenes dropzone under the question; later attaches stay in the sidebar.
 
 A demo change finding uses a pin on the after plate and a 1px leader into the answer. Rejected inputs and live stubs have no pin. Say “illustrative” once in the header; the result prefix can repeat it, nothing else should.
 

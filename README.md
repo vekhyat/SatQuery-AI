@@ -6,12 +6,23 @@ ISRO problem statement: **SatQuery AI** — an interactive vision-language assis
 
 ## Start here
 
-Open [`handbook.html`](handbook.html) in a browser. That is the team briefing: architecture, teaching notes (including LoRA), work order, checklists, PPT/video plan.
+Open [`docs/handbook.html`](docs/handbook.html) in a browser. That is the team briefing: architecture, teaching notes (including LoRA), work order, checklists, PPT/video plan.
+
+## Layout
+
+```text
+docs/           Handbook, product brief, and design system
+satquery/       Checker, router, contracts, storage
+apps/api/       FastAPI health, upload, and query
+apps/web/       Query Notebook (React) and combined local server
+tests/          API tests and tests/web for the notebook
+```
 
 ## Docs in this repo
 
-`handbook.html` is the complete team handbook, including the architecture,
+`docs/handbook.html` is the complete team handbook, including the architecture,
 six-person work split, technical plan, checklists, and presentation guidance.
+The notebook’s visual rules are in [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ## What we are building
 
@@ -37,9 +48,8 @@ optical–SAR analysis. Their registered implementations currently return declar
 stubs. A trained model, VLM, LoRA pipeline, and deployment provider have not been
 implemented in this backend slice.
 
-The Query Notebook lives in `apps/web` on `vekhyat/query-notebook-frontend`.
-It is not on published `main` yet. Dependency manifests are `pyproject.toml` and
-`apps/web/package.json`.
+The Query Notebook lives in `apps/web`. Dependency manifests are `pyproject.toml`
+and `apps/web/package.json`.
 
 ## Backend vertical slice
 
@@ -243,7 +253,7 @@ type entries. A valid request that the router cannot support instead returns HTT
 ### Verify
 
 ```powershell
-python -m pytest tests apps/web/qa/test_web_server.py
+python -m pytest
 python -m compileall apps satquery tests
 ```
 

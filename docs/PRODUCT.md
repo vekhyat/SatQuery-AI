@@ -24,11 +24,11 @@ The planned workflow is upload one or two scenes, ask a question, inspect map ev
 
 ## Brand Commitments
 
-SatQuery AI. On 5 September 2026 the user approved direction C, Query Notebook, in design-mockups/C-query-notebook.png and requested implementation with libraries.dev UI elements and project-driven UX. The user requests Grok subagents. React and TypeScript are selected to support the requested React libraries; Vite hosts the local prototype alongside the existing Python API.
+SatQuery AI. The shipped interface is the Query Notebook in `apps/web`. React and TypeScript host the notebook; Vite serves it locally alongside the Python API. Libraries.dev Border Beam and Thinking Orbs provide focus and waiting feedback.
 
 ## Evidence on Hand
 
-README.md, handbook.html, apps/api/main.py, and satquery/contracts.py. No satellite scenes are supplied in this checkout. The handbook is team documentation, not an established product interface.
+README.md, docs/handbook.html, apps/api/main.py, and satquery/contracts.py. No satellite scenes are supplied in this checkout. The handbook is team documentation, not an established product interface.
 
 ## Product Principles
 

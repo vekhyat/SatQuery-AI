@@ -1,4 +1,4 @@
-const { chromium } = require('../node_modules/@playwright/test');
+const { chromium } = require('../../apps/web/node_modules/@playwright/test');
 const path = require('node:path');
 const fs = require('node:fs');
 const assert = require('node:assert/strict');

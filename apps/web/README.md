@@ -44,16 +44,16 @@ React, TypeScript, Vite, Lucide React, and self-hosted DM Sans. Libraries.dev's 
 
 ```powershell
 npm --prefix apps/web run build
-.\.venv\Scripts\python.exe -m pytest tests apps/web/qa/test_web_server.py
+.\.venv\Scripts\python.exe -m pytest
 ```
 
 Browser checks use Playwright and installed Microsoft Edge. With the combined server running:
 
 ```powershell
-.\.venv\Scripts\python.exe apps\web\qa\create-fixtures.py
+.\.venv\Scripts\python.exe tests\web\create-fixtures.py
 $env:SATQUERY_TEST_URL = 'http://127.0.0.1:5173'
-node apps\web\qa\inspect-notebook.cjs
-node apps\web\qa\verify-live-flow.cjs
+node tests\web\inspect-notebook.cjs
+node tests\web\verify-live-flow.cjs
 ```
 
 Checks cover demo workflows, keyboard comparison, rejection, downloads, desktop/mobile overflow, uploads/previews, all three server-selected routes, and grid rejection. Fixtures and outputs are Git-ignored. No deployment or analytical model implementation is included.
