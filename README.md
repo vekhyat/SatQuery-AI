@@ -23,8 +23,8 @@ Not three LLMs. A VLM/LoRA upgrade, if any, sits inside the single-image tool af
 
 | Layer | Choice | Role and current status |
 |---|---|---|
-| Frontend | React 19, TypeScript, Vite | Query Notebook interface; being built in `apps/web` on the frontend branch. |
-| Frontend supporting libraries | GeoTIFF.js, Lucide React, DM Sans, Border Beam, Thinking Orbs | Declared in the frontend prototype for raster previews, icons, typography, and visual feedback. |
+| Frontend | React 19, TypeScript, Vite | Query Notebook in `apps/web`: upload, question, comparison, and receipt. |
+| Frontend supporting libraries | Lucide React, DM Sans, Border Beam, Thinking Orbs | Icons, self-hosted type, question focus, and waiting feedback. Raster previews come from Python. |
 | API | Python 3.12+, FastAPI, Uvicorn | Implemented health, GeoTIFF upload, and query endpoints. |
 | Shared JSON contract | Pydantic 2 | Validates requests, upload metadata, tool results, and API responses in `satquery/contracts.py`. |
 | Geospatial processing | Rasterio, NumPy, Affine | Reads raster metadata and checks CRS, dimensions, resolution, and exact pixel-grid alignment. |
@@ -37,9 +37,8 @@ optical–SAR analysis. Their registered implementations currently return declar
 stubs. A trained model, VLM, LoRA pipeline, and deployment provider have not been
 implemented in this backend slice.
 
-The frontend package and its supporting libraries are work in progress on
-`vekhyat/query-notebook-frontend`; they are not part of the published backend-only
-`main` yet. Dependency manifests are `pyproject.toml` and, on the frontend branch,
+The Query Notebook lives in `apps/web` on `vekhyat/query-notebook-frontend`.
+It is not on published `main` yet. Dependency manifests are `pyproject.toml` and
 `apps/web/package.json`.
 
 ## Backend vertical slice
@@ -74,6 +73,18 @@ Open `http://127.0.0.1:8000/docs` for the interactive API page. The three public
 - `GET /health`
 - `POST /upload`
 - `POST /query`
+
+To run the Query Notebook with the API and raster previews in one process, see
+[`apps/web/README.md`](apps/web/README.md):
+
+```powershell
+npm --prefix apps/web ci
+npm --prefix apps/web run build
+.\.venv\Scripts\python.exe apps\web\server.py
+```
+
+Then open `http://127.0.0.1:5173`. That server exposes the API under `/api`.
+The Uvicorn command above is backend-only.
 
 ### Upload and query
 
@@ -232,7 +243,7 @@ type entries. A valid request that the router cannot support instead returns HTT
 ### Verify
 
 ```powershell
-python -m pytest
+python -m pytest tests apps/web/qa/test_web_server.py
 python -m compileall apps satquery tests
 ```
 

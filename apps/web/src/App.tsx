@@ -1,0 +1,365 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
+import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, CircleHelp, CirclePlus, Download, FileCheck2, FlaskConical, GitBranch, Info, Layers2, Menu, Plus, Search, Trash2, UploadCloud, X, AlertTriangle } from 'lucide-react';
+import { BorderBeam } from 'border-beam';
+import { ThinkingOrb } from 'thinking-orbs';
+import { SceneViewer } from './components/SceneViewer';
+import { checkHealth, queryScenes, uploadScene } from './lib/api';
+import { createDemoResult, createDemoScenes } from './lib/demo';
+import type { Mode, ResultEnvelope, Scene } from './lib/types';
+
+type Investigation = { id: string; title: string; source: 'demo' | 'local'; mode: Mode; question: string; scenes: Scene[]; result: ResultEnvelope | null; submittedQuestion?: string };
+type Pending = { id: string; file: File; modality: 'auto' | 'optical' | 'sar'; date: string };
+const MODES: Mode[] = ['single_image', 'change', 'optical_sar'];
+const MODE_NAMES: Record<Mode, string> = { single_image: 'Single image', change: 'Change detection', optical_sar: 'Optical + SAR' };
+const QUESTIONS: Record<Mode, string> = { single_image: 'Describe the land cover in this scene.', change: 'What changed along the river?', optical_sar: 'Compare the optical and SAR images.' };
+const TITLES: Record<Mode, string> = { single_image: 'A closer look at the landscape.', change: 'What changed along the river?', optical_sar: 'One landscape. Two perspectives.' };
+
+function sceneRoleLabel(scene: Scene, index: number, mode: Mode): string {
+  if (mode === 'change') return index === 0 ? 'Before' : 'After';
+  if (mode === 'optical_sar') return scene.modality === 'sar' ? 'SAR' : 'Optical';
+  if (scene.modality === 'sar') return 'SAR';
+  if (scene.modality === 'optical') return 'Optical';
+  return 'Scene';
+}
+
+function questionSuggestions(scenes: Scene[]): Mode[] {
+  if (scenes.length < 2) return ['single_image'];
+  const hasSar = scenes.some(item => item.modality === 'sar');
+  const hasOptical = scenes.some(item => item.modality === 'optical');
+  if (hasSar && hasOptical) return ['optical_sar'];
+  if (scenes.every(item => item.modality === 'optical')) return ['change'];
+  return ['single_image'];
+}
+
+function demoInvestigation(): Investigation {
+  return { id: 'demo', title: 'River corridor', source: 'demo', mode: 'change', question: QUESTIONS.change, scenes: createDemoScenes('change'), result: createDemoResult('change'), submittedQuestion: QUESTIONS.change };
+}
+
+function saveJson(data: unknown, name: string) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function receiptTrail(result: ResultEnvelope, demo: boolean): string {
+  return result.receipt.trace.map(step => {
+    if (step.stage === 'checker') return step.status === 'rejected' ? 'Rejected' : 'Checked';
+    if (step.stage === 'router') {
+      if (step.status === 'rejected' || result.task === 'reject') return 'Not routed';
+      return result.task === 'change' ? 'Change' : result.task === 'optical_sar' ? 'Optical + SAR' : 'Single image';
+    }
+    if (step.status === 'stub') return demo ? 'Illustrative' : 'Not connected';
+    if (step.status === 'rejected') return 'Rejected';
+    return 'Ran';
+  }).join(' · ');
+}
+
+function FindingLeader({ active }: { active: boolean }) {
+  const host = useRef<HTMLDivElement>(null);
+  const [path, setPath] = useState<string | null>(null);
+  const [end, setEnd] = useState<{ x: number; y: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const root = host.current?.parentElement;
+    if (!active || !root) {
+      setPath(null);
+      setEnd(null);
+      return;
+    }
+    const measure = () => {
+      const pin = root.querySelector('[data-finding-pin]');
+      const target = root.querySelector('[data-finding-target]');
+      if (!pin || !target) {
+        setPath(null);
+        setEnd(null);
+        return;
+      }
+      const rb = root.getBoundingClientRect();
+      const pb = pin.getBoundingClientRect();
+      const tb = target.getBoundingClientRect();
+      const x1 = pb.left + pb.width / 2 - rb.left;
+      const y1 = pb.top + pb.height / 2 - rb.top;
+      const x2 = pb.left < tb.left ? tb.left - rb.left : tb.left + tb.width / 2 - rb.left;
+      const y2 = tb.top + tb.height / 2 - rb.top;
+      setPath(`M ${x1} ${y1} L ${x1} ${y2} L ${x2} ${y2}`);
+      setEnd({ x: x2, y: y2 });
+    };
+    measure();
+    const frame = window.requestAnimationFrame(measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    root.addEventListener('click', measure);
+    root.addEventListener('input', measure);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      ro.disconnect();
+      root.removeEventListener('click', measure);
+      root.removeEventListener('input', measure);
+      window.removeEventListener('resize', measure);
+    };
+  }, [active]);
+
+  if (!active) return <div ref={host} className="finding-leader-host" aria-hidden />;
+  return (
+    <div ref={host} className="finding-leader-host" aria-hidden>
+      {path && end ? (
+        <svg className="finding-leader">
+          <path d={path} />
+          <circle cx={end.x} cy={end.y} r="2.25" />
+        </svg>
+      ) : null}
+    </div>
+  );
+}
+
+function Receipt({ result, demo, busy, question }: { result: ResultEnvelope | null; demo: boolean; busy: boolean; question: string }) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const definitions = [{ id: 'checker', title: 'Check inputs', subtitle: 'GeoTIFF validation', Icon: FileCheck2 }, { id: 'router', title: 'Choose tool', subtitle: 'Deterministic routing', Icon: GitBranch }, { id: 'tool', title: 'Inspect evidence', subtitle: 'Specialist analysis', Icon: Search }];
+  const selected = result?.task;
+  if (!result && !busy) return null;
+  return <section className={'receipt' + (open ? ' is-open' : '')} aria-label="Analysis receipt" aria-busy={busy}>
+    <button className="receipt-summary" type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}>
+      <span className="receipt-summary-title">Receipt</span>
+      <span className="receipt-trail">{busy ? 'Waiting for the API' : result ? receiptTrail(result, demo) : ''}</span>
+      <ChevronDown size={16} />
+    </button>
+    {open && <>
+      <div className="trace-flow">
+        {definitions.map(({ id, title, subtitle, Icon }, index) => {
+          const step = result?.receipt.trace.find(s => s.stage === id);
+          const status = busy ? 'Waiting' : !step ? 'Not run' : demo ? (result?.receipt.rejected && step.status === 'rejected' ? 'Rejected' : 'Demo') : step.status === 'ok' ? 'Passed' : step.status === 'stub' ? 'Not connected' : 'Rejected';
+          return <div className={'trace-column ' + (id === 'router' ? 'router-column' : '')} key={id}>
+            <button className={'trace-step ' + (expanded === id ? 'expanded ' : '') + (step?.status === 'rejected' ? 'rejected' : '')} type="button" disabled={!step || busy} onClick={() => setExpanded(expanded === id ? null : id)} aria-expanded={expanded === id}>
+              <span className="step-number">{index + 1}</span><Icon size={28} strokeWidth={1.5} />
+              <span className="step-copy"><strong>{title}</strong><small>{subtitle}</small></span>
+              <span className={'step-status status-' + step?.status}>{status}{step && !busy && <ChevronDown size={12} />}</span>
+            </button>
+            {id === 'router' && <div className="route-options" aria-label="Selected analysis route">{MODES.map(mode => <span key={mode} className={selected === mode ? 'selected' : ''}><i />{mode === 'single_image' ? 'Single image' : mode === 'change' ? 'Change' : 'Optical + SAR'}</span>)}</div>}
+          </div>;
+        })}
+      </div>
+      {expanded && result && <div className="trace-detail"><strong>{definitions.find(d => d.id === expanded)?.title}</strong><p>{result.receipt.trace.find(s => s.stage === expanded)?.message}</p><pre>{JSON.stringify(result.receipt.trace.find(s => s.stage === expanded)?.details ?? {}, null, 2)}</pre></div>}
+      {result && <details className="receipt-details"><summary>Why this tool? <ChevronDown size={14} /></summary><p>{result.receipt.why_this_tool}</p><dl><dt>Tools</dt><dd>{result.tools.join(', ') || 'No tool selected'}</dd><dt>Parameters</dt><dd><pre>{JSON.stringify(result.parameters, null, 2)}</pre></dd></dl></details>}
+    </>}
+    <div className="receipt-footer">
+      <span><Info size={15} />{demo || result?.receipt.trace.some(s => s.status === 'stub') || result?.receipt.rejected ? 'Confidence: not measured' : result ? `Confidence: ${Math.round(result.confidence * 100)}%` : 'Confidence: not measured'}{demo ? ' · No image analysis performed' : result?.receipt.trace.some(s => s.status === 'stub') ? ' · Analysis not connected' : ''}</span>
+      <div className="export-actions">
+        <button className="text-button" type="button" disabled={!result || busy} aria-label="Download JSON" onClick={() => saveJson(result, 'satquery-result.json')}><Download size={15} />JSON</button>
+        <button className="button primary" type="button" disabled={!result || busy} onClick={() => saveJson({ source: demo ? 'illustrative_demo' : 'api', question, receipt: result?.receipt, tools: result?.tools, parameters: result?.parameters, warnings: result?.warnings }, 'satquery-receipt.json')}><Download size={16} />Export receipt</button>
+      </div>
+    </div>
+  </section>;
+}
+
+export default function App() {
+  const [investigations, setInvestigations] = useState<Investigation[]>(() => [demoInvestigation()]);
+  const [activeId, setActiveId] = useState('demo');
+  const [busy, setBusy] = useState(false);
+  const [activity, setActivity] = useState('');
+  const [error, setError] = useState('');
+  const [health, setHealth] = useState<boolean | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [pending, setPending] = useState<Pending[]>([]);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [queryFocused, setQueryFocused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const queryRef = useRef<HTMLInputElement>(null);
+  const current = investigations.find(item => item.id === activeId)!;
+  const isDemo = current.source === 'demo';
+  const slots = isDemo ? current.mode === 'single_image' ? 1 : 2 : 2;
+  const actualCount = current.scenes.length;
+  const result = current.result;
+  const viewMode: Mode = isDemo ? current.mode : result && result.task !== 'reject' ? result.task : actualCount < 2 ? 'single_image' : 'change';
+  const rejected = result?.receipt.rejected ?? false;
+  const hasStub = result?.receipt.trace.some(s => s.status === 'stub') ?? false;
+  const dirtyQuestion = !!result && current.question !== current.submittedQuestion;
+  const showCallout = isDemo && !rejected && showOverlay && !!result && current.mode === 'change';
+  const routedLabel = result && result.task !== 'reject' ? MODE_NAMES[result.task] : null;
+
+  useEffect(() => { void checkHealth().then(setHealth).catch(() => setHealth(false)); const query = window.matchMedia('(prefers-reduced-motion: reduce)'); const handler = () => setReducedMotion(query.matches); query.addEventListener('change', handler); return () => query.removeEventListener('change', handler); }, []);
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || busy) return;
+      setHelpOpen(false);
+      setUploadOpen(false);
+      setSidebarOpen(false);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [busy]);
+
+  function update(patch: Partial<Investigation>) { setInvestigations(items => items.map(item => item.id === activeId ? { ...item, ...patch } : item)); }
+  function newInvestigation(openUploads = false) {
+    if (busy) return;
+    const id = crypto.randomUUID(); const number = investigations.filter(i => i.source === 'local').length + 1;
+    setInvestigations(items => [...items, { id, title: `Investigation ${number}`, source: 'local', mode: 'single_image', question: '', scenes: [], result: null }]);
+    setActiveId(id); setError(''); setPending([]); setUploadOpen(true); setSidebarOpen(false); setShowOverlay(false);
+  }
+  function selectInvestigation(id: string) { if (busy) return; setActiveId(id); setError(''); setPending([]); setUploadOpen(false); setSidebarOpen(false); setShowOverlay(id === 'demo'); }
+  function selectMode(mode: Mode) {
+    if (busy || mode === current.mode) return;
+    update({
+      mode,
+      question: QUESTIONS[mode],
+      scenes: isDemo ? createDemoScenes(mode) : current.scenes,
+      result: isDemo ? createDemoResult(mode) : null,
+      submittedQuestion: isDemo ? QUESTIONS[mode] : undefined,
+    });
+    setPending([]); setError(''); setShowOverlay(isDemo && mode === 'change');
+  }
+  function addScenes() { if (isDemo) newInvestigation(true); else { setUploadOpen(true); setSidebarOpen(true); } }
+  function queueFiles(files: FileList | File[] | null) {
+    if (!files || busy) return;
+    const chosen = Array.from(files);
+    if (chosen.some(f => !/\.tiff?$/i.test(f.name))) { setError('Choose GeoTIFF files (.tif or .tiff). Images such as JPG and PNG do not contain the required geospatial metadata.'); return; }
+    if (chosen.some(f => f.size > 100 * 1024 * 1024)) { setError('Each GeoTIFF must be 100 MiB or smaller. Choose a smaller scene and try again.'); return; }
+    if (chosen.length + pending.length + actualCount > slots) { setError('An investigation supports up to two scenes. Remove an attached or queued scene before adding more.'); return; }
+    setError(''); setPending(items => [...items, ...chosen.map(file => ({ id: crypto.randomUUID(), file, modality: 'auto' as Pending['modality'], date: '' }))]);
+  }
+  async function attachScenes() {
+    if (!pending.length || busy) return;
+    setBusy(true); setError(''); let attached = [...current.scenes];
+    try {
+      for (const item of pending) {
+        setActivity(`Validating ${item.file.name}…`);
+        const asset = await uploadScene(item.file, item.modality, item.date || undefined);
+        let preview: string | null = null;
+        try { setActivity(`Preparing ${item.file.name} preview…`); const response = await fetch(`/api/preview/${encodeURIComponent(asset.asset_id)}`, { signal: AbortSignal.timeout(15000) }); if (response.ok) preview = URL.createObjectURL(await response.blob()); } catch { /* Validated assets can be queried without a preview. */ }
+        attached = [...attached, { id: asset.asset_id, name: asset.original_name, date: asset.metadata.acquisition_date ?? '', modality: asset.metadata.modality, preview, asset, previewNote: preview ? 'Display stretch; original pixels are used by the API.' : 'Preview unavailable; validated file can still be queried.' }];
+        if (attached.length === 2 && attached.every(scene => scene.modality === 'optical' && scene.date)) attached.sort((a, b) => a.date.localeCompare(b.date));
+        if (attached.length === 2 && attached.some(scene => scene.modality === 'sar') && attached.some(scene => scene.modality === 'optical')) attached.sort((a, b) => Number(a.modality === 'sar') - Number(b.modality === 'sar'));
+        update({ scenes: attached, result: null }); setPending(items => items.filter(p => p.id !== item.id)); setHealth(true);
+      }
+      setUploadOpen(false);
+    } catch (err) { setError(err instanceof Error ? err.message : 'The upload failed. Check the API connection and try again.'); void checkHealth().then(setHealth).catch(() => setHealth(false)); }
+    finally { setBusy(false); setActivity(''); }
+  }
+  async function runQuery(event?: FormEvent) {
+    event?.preventDefault(); if (busy) return;
+    const question = current.question.trim();
+    if (!question) { setError('Write a question about your scenes first.'); queryRef.current?.focus(); return; }
+    if (!actualCount || actualCount > 2) { setError('Attach one or two GeoTIFF scenes before asking. The router will select the analysis from your files and question.'); setUploadOpen(true); setSidebarOpen(true); return; }
+    setError(''); setBusy(true); setActivity(isDemo ? 'Loading the prepared demonstration…' : 'Waiting for validation, routing, and the tool response…');
+    update({ result: null });
+    try {
+      let next: ResultEnvelope;
+      if (isDemo) {
+        await new Promise(resolve => setTimeout(resolve, 750));
+        next = createDemoResult(current.mode);
+        if (question.toLowerCase().replace(/[?.]/g, '') !== QUESTIONS[current.mode].toLowerCase().replace(/[?.]/g, '')) {
+          next = createDemoResult(current.mode, true);
+          next.answer_text = 'This demo only answers the suggested question. Use your own GeoTIFFs to submit another question to the API.';
+          next.receipt.reason = next.answer_text;
+        }
+      } else {
+        next = await queryScenes(current.scenes.map(scene => scene.asset!.asset_id), question); setHealth(true);
+      }
+      update({ result: next, submittedQuestion: current.question, ...(next.task !== 'reject' && !isDemo ? { mode: next.task } : {}) }); setShowOverlay(isDemo && !next.receipt.rejected && current.mode === 'change');
+    } catch (err) { setError(err instanceof Error ? err.message : 'The query failed. Check the API and try again.'); void checkHealth().then(setHealth).catch(() => setHealth(false)); }
+    finally { setBusy(false); setActivity(''); }
+  }
+  function demoReject() { update({ result: createDemoResult(current.mode, true), submittedQuestion: current.question }); setShowOverlay(false); }
+
+  const emptyLive = !isDemo && actualCount === 0;
+  const uploadPanel = uploadOpen ? (
+    <section className={'upload-panel' + (emptyLive ? ' in-workspace' : '')} aria-label="Attach GeoTIFF scenes">
+      <div className="upload-panel-heading">
+        <div>
+          <h2>Attach scenes</h2>
+          <p>One or two GeoTIFFs. Dated optical pairs must share a CRS and pixel grid.</p>
+        </div>
+        <button className="icon-button" type="button" disabled={busy} aria-label="Close upload panel" onClick={() => setUploadOpen(false)}><X size={19} /></button>
+      </div>
+      <input ref={inputRef} className="sr-only" type="file" accept=".tif,.tiff" multiple aria-label="Choose GeoTIFF files" disabled={busy} onChange={(e: ChangeEvent<HTMLInputElement>) => { queueFiles(e.target.files); e.target.value = ''; }} />
+      <button className="dropzone" type="button" disabled={busy || actualCount + pending.length >= slots} onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (!busy && actualCount + pending.length < slots) queueFiles(e.dataTransfer.files); }}>
+        <UploadCloud size={emptyLive ? 32 : 22} strokeWidth={1.5} /><span><strong>{emptyLive ? 'Add scenes' : 'Drop GeoTIFFs, or browse'}</strong><small>{emptyLive ? 'Drop GeoTIFFs here, or browse · one or two files · 100 MiB each' : `${Math.max(0, slots - actualCount - pending.length)} slots · 100 MiB each`}</small></span>
+      </button>
+      {pending.map(item => <div className="pending-file" key={item.id}><span title={item.file.name}>{item.file.name}<small>{(item.file.size / 1024 / 1024).toFixed(1)} MiB</small></span><label>Modality<select aria-label="Modality" value={item.modality} disabled={busy} onChange={e => setPending(ps => ps.map(p => p.id === item.id ? { ...p, modality: e.target.value as Pending['modality'] } : p))}><option value="auto">Auto-detect</option><option value="optical">Optical</option><option value="sar">SAR</option></select></label><label>Acquisition date<input type="date" value={item.date} disabled={busy} onChange={e => setPending(ps => ps.map(p => p.id === item.id ? { ...p, date: e.target.value } : p))} /></label><button className="icon-button" type="button" disabled={busy} aria-label={`Remove queued ${item.file.name}`} onClick={() => setPending(ps => ps.filter(p => p.id !== item.id))}><Trash2 size={16} /></button></div>)}
+      {error && <p className="upload-error" role="alert">{error}</p>}
+      <div className="upload-actions"><button className="button primary" type="button" disabled={!pending.length || busy} onClick={attachScenes}>{busy ? 'Validating…' : 'Validate and attach'}<ArrowRight size={16} /></button></div>
+    </section>
+  ) : null;
+
+  return <div className="app-shell">
+    <a className="skip-link" href="#workspace">Skip to investigation</a>
+    <header className="app-header">
+      <div className="brand">
+        <button className="icon-button mobile-menu" type="button" aria-label="Investigations" aria-expanded={sidebarOpen} aria-controls="investigations-panel" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={21} /><span className="mobile-menu-label">Investigations</span></button>
+        <img src="/satquery.svg" width="48" height="44" alt="" /><span>SatQuery <b>AI</b></span>
+        <span className="brand-divider" /><span className="product-label">Investigation notebook</span>
+      </div>
+      <div className="header-actions">
+        <span className={'connection ' + (health ? 'online' : '')} title={health ? 'Local API connected' : 'Start the local SatQuery server to query your own scenes'}><i />{health === null ? 'Checking API' : health ? 'API connected' : 'API offline'}</span>
+        {isDemo && <span className="demo-mark"><FlaskConical size={14} />Illustrative data</span>}
+        <button className={'icon-button ' + (helpOpen ? 'active' : '')} type="button" aria-label="How SatQuery works" aria-expanded={helpOpen} onClick={() => setHelpOpen(!helpOpen)}><CircleHelp size={20} /></button>
+      </div>
+    </header>
+    <div className="app-body">
+      <aside id="investigations-panel" className={'sidebar ' + (sidebarOpen ? 'is-open' : '')} aria-label="Investigations and attached scenes">
+        <div className="sidebar-title">Investigations <span>{investigations.length.toString().padStart(2, '0')}</span></div>
+        <nav className="investigation-list">{investigations.map(item => <button key={item.id} className={'investigation ' + (activeId === item.id ? 'selected' : '')} type="button" aria-current={activeId === item.id ? 'true' : undefined} disabled={busy} onClick={() => selectInvestigation(item.id)}><BookOpen size={19} strokeWidth={1.6} /><span>{item.title}</span>{item.source === 'demo' && <small>DEMO</small>}</button>)}</nav>
+        <button className="new-investigation" type="button" onClick={() => newInvestigation()} disabled={busy}><CirclePlus size={21} strokeWidth={1.5} />New investigation</button>
+        <div className="sidebar-rule" />
+        <div className="sidebar-title">Attached scenes <span>{actualCount} / {slots}</span></div>
+        <div className="scene-list">{current.scenes.map((scene, index) => <article className="scene-item" key={scene.id}>
+          {scene.preview ? <div className="scene-thumbnail" role="img" aria-label={`${scene.demo ? 'Illustrative ' : ''}${scene.modality} scene ${index + 1}`} style={{ backgroundImage: `url("${scene.preview}")`, backgroundPosition: scene.previewPosition ?? 'center', backgroundSize: scene.previewPosition ? '200% 100%' : 'cover' }} /> : <div className="scene-thumbnail no-preview"><Layers2 size={30} /><span>GeoTIFF</span></div>}
+          <div className="scene-caption"><strong>{sceneRoleLabel(scene, index, viewMode)}</strong><span>{scene.date ? new Date(scene.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Date unknown'}</span>{!isDemo && <button className="icon-button remove-scene" type="button" disabled={busy} aria-label={`Remove ${scene.name}`} onClick={() => { if (scene.preview?.startsWith('blob:')) URL.revokeObjectURL(scene.preview); update({ scenes: current.scenes.filter(s => s.id !== scene.id), result: null }); }}><X size={14} /></button>}</div>
+          <details className="scene-metadata"><summary><span>{scene.asset?.original_name || 'Scene metadata'}</span><ChevronDown size={12} /></summary><dl><dt>Source</dt><dd>{isDemo ? 'Generated demo imagery' : 'Uploaded GeoTIFF'}</dd><dt>Modality</dt><dd>{scene.modality}</dd>{scene.asset && <><dt>CRS</dt><dd>{scene.asset.metadata.crs}</dd><dt>Dimensions</dt><dd>{scene.asset.metadata.width} × {scene.asset.metadata.height}</dd><dt>Bands</dt><dd>{scene.asset.metadata.band_count}</dd><dt>Resolution</dt><dd>{scene.asset.metadata.resolution.join(' × ')} CRS units</dd><dt>Bounds</dt><dd>{Object.entries(scene.asset.metadata.bounds).map(([key, value]) => `${key}: ${value}`).join(', ')}</dd><dt>Expires</dt><dd>{new Date(scene.asset.expires_at).toLocaleString()}</dd></>}</dl>{scene.asset?.warnings.map((w, i) => <p key={i}>{w}</p>)}<p>{scene.previewNote}</p></details>
+        </article>)}</div>
+        {!actualCount && !emptyLive && !uploadOpen && <div className="empty-scenes"><Layers2 size={28} strokeWidth={1.4} /><p>Attach a GeoTIFF to begin.</p><span>One scene, a dated pair, or optical + SAR.</span></div>}
+        {!emptyLive && uploadPanel}
+        <div className="sidebar-bottom">{isDemo && <label className="demo-picker">Demo example<select aria-label="Load demo example" value={current.mode} onChange={e => selectMode(e.target.value as Mode)} disabled={busy}><option value="change">River change · two dates</option><option value="single_image">Land cover · one scene</option><option value="optical_sar">Sensor comparison · two scenes</option></select></label>}<button className="button upload-button" type="button" disabled={busy} onClick={addScenes}><UploadCloud size={21} strokeWidth={1.5} />Add scenes <Plus size={15} /></button><p>GeoTIFF · up to 100 MiB per file</p></div>
+      </aside>
+      <main id="workspace" className="workspace">
+        <div className="workspace-heading"><h1>{isDemo ? TITLES[current.mode] : current.submittedQuestion || 'What do you want to explore?'}</h1>{isDemo && <button className="text-button use-scenes" type="button" onClick={addScenes} disabled={busy}>Use my scenes <ArrowUpRight size={15} /></button>}</div>
+        {helpOpen && <section className="help-panel"><div><p className="help-title">From question to evidence.</p><p>Attach one or two GeoTIFFs and ask a question. The router selects the analysis from your files. Open the receipt to inspect each step.</p><p><strong>Illustrative data</strong> is a prepared example. Your own scenes call the local API; analysis tools are stubs, so no measured findings are returned yet.</p></div><button className="icon-button" type="button" aria-label="Close help" onClick={() => setHelpOpen(false)}><X size={18} /></button></section>}
+        <form className="query-form" onSubmit={runQuery}>
+          <BorderBeam className="query-beam" size="line" theme="light" colorVariant="sunset" strength={reducedMotion ? 0 : busy ? 0.65 : queryFocused ? 0.25 : 0} active={!reducedMotion && (queryFocused || busy)}>
+            <div className="query-input-wrap"><label className="sr-only" htmlFor="question">Question about your satellite scenes</label><input id="question" ref={queryRef} value={current.question} maxLength={500} disabled={busy} onFocus={() => setQueryFocused(true)} onBlur={() => setQueryFocused(false)} onChange={e => update({ question: e.target.value })} placeholder="Ask a question about your scenes…" /><button className="ask-button" type="submit" disabled={busy || !current.question.trim() || !actualCount}>{busy ? <><ThinkingOrb state="connecting" size={20} paused={reducedMotion} />Working…</> : <>Ask SatQuery<ArrowRight size={23} strokeWidth={1.5} /></>}</button></div>
+          </BorderBeam>
+        </form>
+        {emptyLive && (uploadOpen ? uploadPanel : (
+          <button className="attach-prompt" type="button" disabled={busy} onClick={() => setUploadOpen(true)} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); setUploadOpen(true); queueFiles(e.dataTransfer.files); }}>
+            <UploadCloud size={32} strokeWidth={1.5} />
+            <span className="attach-prompt-copy"><strong>Add scenes</strong><small>Drop GeoTIFFs here, or browse · one or two files · 100 MiB each</small></span>
+            <Plus size={22} />
+          </button>
+        ))}
+        {!isDemo && actualCount > 0 && <div className="question-suggestions"><span>Try asking</span>{questionSuggestions(current.scenes).map(mode => <button className="text-button" type="button" disabled={busy} key={mode} onClick={() => { update({ question: QUESTIONS[mode] }); queryRef.current?.focus(); }}>{mode === 'single_image' ? 'Describe land cover' : mode === 'change' ? 'What changed?' : 'Compare optical + SAR'}<ArrowUpRight size={12} /></button>)}</div>}
+        {!emptyLive && <div className={'mode-bar' + (result ? ' has-result' : '')}>
+          {rejected ? <p className="route-status">These inputs could not be routed</p> : routedLabel ? <p className="route-status"><GitBranch size={13} />Routed to {routedLabel}</p> : <p className="route-status idle">The router chooses after you ask</p>}
+          <div className="route-indicators" aria-label="Router-selected analysis mode">{MODES.map(mode => <span key={mode} className={result?.task === mode ? 'selected' : ''}>{MODE_NAMES[mode]}{result?.task === mode && <Check size={13} />}</span>)}</div>
+        </div>}
+        <div id="analysis-panel">
+          {error && !uploadOpen && <div className="error-banner" role="alert"><AlertTriangle size={19} /><div><strong>We couldn’t complete that step.</strong><p>{error}</p>{health === false && !isDemo && <button className="text-button" type="button" onClick={() => { void checkHealth().then(setHealth); }}>Recheck API connection</button>}</div><button className="icon-button" type="button" aria-label="Dismiss error" onClick={() => setError('')}><X size={16} /></button></div>}
+          {busy && <div className="activity" role="status"><ThinkingOrb state="connecting" size={20} paused={reducedMotion} /><span>{activity}</span></div>}
+          {!emptyLive && <div className={'evidence-stack' + (showCallout ? ' has-callout' : '')}>
+            <FindingLeader active={showCallout} />
+            <SceneViewer scenes={current.scenes} mode={viewMode} showOverlay={showOverlay && !!result && !rejected} rejected={rejected} busy={busy} onOverlayChange={setShowOverlay} />
+            {result || busy ? (
+              <section className={'answer-panel ' + (rejected ? 'answer-rejected' : '')} aria-label="Analysis answer" aria-live="polite">
+                <div className="answer-icon">{rejected ? <AlertTriangle size={21} /> : <Check size={21} />}</div>
+                <div className="answer-content">
+                  <div className="answer-title">
+                    <h2>{rejected ? 'These inputs cannot be analysed' : isDemo ? 'Illustrative result' : hasStub ? 'Inputs validated. Analysis not connected.' : 'Analysis result'}</h2>
+                  </div>
+                  <p>{result ? rejected ? result.receipt.reason || result.answer_text : result.answer_text : 'The response will appear once the request completes.'}{showCallout && <span className="finding-anchor" data-finding-target="" />}</p>
+                  {dirtyQuestion && <small className="stale-notice">This result belongs to your previous question. Run the updated question to refresh it.</small>}
+                  {result?.warnings.length ? <details className="warnings"><summary><Info size={14} />{result.warnings.length} {result.warnings.length === 1 ? 'note' : 'notes'} about this result<ChevronDown size={13} /></summary><ul>{result.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></details> : null}
+                </div>
+              </section>
+            ) : null}
+          </div>}
+          <Receipt key={current.id + current.mode + String(result?.receipt.rejected)} result={result} demo={isDemo} busy={busy} question={current.submittedQuestion ?? ''} />
+          <footer className="workspace-footer"><span>SatQuery AI <span className="footer-dot">·</span> SIH26167</span>{isDemo ? <button className="text-button" type="button" disabled={busy} onClick={demoReject}>Try an incompatible pair <ArrowUpRight size={13} /></button> : <span>Session stays in this browser tab</span>}</footer>
+        </div>
+      </main>
+    </div>
+  </div>;
+}

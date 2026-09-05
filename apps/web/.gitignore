@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+qa/*.png
+qa/*.log
+qa/*.json
+qa/fixtures/
+qa/python-tests-*/
+# Discarded intermediate plain-JavaScript draft; not served or built.
+static/
