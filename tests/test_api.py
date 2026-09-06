@@ -189,9 +189,9 @@ def test_optical_sar_route_is_independent_of_upload_order(
 ) -> None:
     sar = upload(
         client,
-        geotiff_bytes(bands=2, descriptions=["VV", "VH"]),
+        geotiff_bytes(bands=2, descriptions=["VV", "VH"], tags={"units": "linear"}),
     ).json()
-    optical = upload(client, geotiff_bytes(), modality="optical").json()
+    optical = upload(client, geotiff_bytes(descriptions=["green", "nir", "swir"]), modality="optical").json()
     response = query(
         client,
         [sar["asset_id"], optical["asset_id"]],

@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, Request, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from satquery import __version__
 from satquery.checker import CHECKER_VERSION
@@ -25,6 +25,7 @@ from satquery.errors import SatQueryError
 from satquery.router import ROUTER_VERSION
 from satquery.service import SatQueryService
 from satquery.storage import AssetStore
+from satquery.tools.optical_sar import artifact_path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
@@ -152,8 +153,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response_model=ResultEnvelope,
         responses={404: {"model": ErrorEnvelope}, 422: {"model": ErrorEnvelope}},
     )
-    def query(payload: QueryRequest) -> ResultEnvelope:
-        return service.query(payload.asset_ids, payload.question)
+    def query(payload: QueryRequest, request: Request) -> ResultEnvelope:
+        prefix = request.scope.get("root_path", "").rstrip("/") + "/artifacts/tool3"
+        return service.query(payload.asset_ids, payload.question, artifact_base_url=prefix)
+
+    @app.get("/artifacts/tool3/{run_id}/{filename}")
+    def tool3_artifact(run_id: str, filename: str) -> FileResponse:
+        path = artifact_path(service.tool_context(), run_id, filename)
+        return FileResponse(path, media_type="image/png" if path.suffix == ".png" else "image/tiff",
+                            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
     return app
 

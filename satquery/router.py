@@ -106,7 +106,7 @@ def route_query(assets: list[AssetRecord], question: str, pack: PackCheck) -> Ro
         sar = sar_assets[0]
         return RoutePlan(
             task=Task.OPTICAL_SAR,
-            tool="optical_sar_stub_v0",
+            tool="optical_sar_v1",
             ordered_asset_ids=[optical.asset_id, sar.asset_id],
             parameters={
                 "optical_asset_id": str(optical.asset_id),

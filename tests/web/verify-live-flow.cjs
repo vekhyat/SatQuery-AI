@@ -9,11 +9,11 @@ const assert = require('node:assert/strict');
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => { if (request.url().endsWith('/api/query')) requests.push(request.postDataJSON()); });
   page.on('response', response => { if (response.url().includes('/api/preview/')) previews.push(response.status()); });
-  await page.goto('http://127.0.0.1:5173', { waitUntil: 'networkidle' });
+  await page.goto(process.env.SATQUERY_TEST_URL || 'http://127.0.0.1:5173', { waitUntil: 'networkidle' });
   const cases = [
     { files: ['before'], modalities: ['optical'], question: 'Describe the land cover', route: 'single_image' },
     { files: ['after', 'before'], modalities: ['optical', 'optical'], question: 'What changed?', route: 'change' },
-    { files: ['sar', 'before'], modalities: ['sar', 'optical'], question: 'Compare the optical and SAR images', route: 'optical_sar' },
+    { files: ['sar', 'before'], modalities: ['sar', 'optical'], question: 'Compare the optical and SAR images', route: 'reject' },
     { files: ['before', 'mismatch'], modalities: ['optical', 'optical'], question: 'What changed?', route: 'reject' },
   ];
   const outcomes = [];

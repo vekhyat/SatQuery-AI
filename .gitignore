@@ -21,6 +21,10 @@ runtime/
 .idea/
 .vscode/
 TEAM_LEADER_BRIEF.md
+demo/packs/C/generated/
+build/
+dist/
+*.whl
 tests/web/fixtures/
 tests/web/*.png
 tests/web/*.json

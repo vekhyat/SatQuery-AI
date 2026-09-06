@@ -11,6 +11,8 @@ dependencies = [
   "affine>=3,<4",
   "fastapi>=0.141,<0.142",
   "numpy>=2,<3",
+  "opencv-python-headless>=4.10,<6",
+  "Pillow>=10,<13",
   "pydantic>=2.13,<3",
   "python-multipart>=0.0.20,<1",
   "rasterio>=1.5,<1.6",
@@ -21,10 +23,19 @@ dependencies = [
 dev = [
   "httpx>=0.28,<1",
   "pytest>=9,<10",
+  "jsonschema>=4.22,<5",
 ]
 
 [tool.setuptools.packages.find]
 include = ["apps*", "satquery*"]
+
+[tool.setuptools.package-data]
+"satquery.tools.tool3" = ["report_template.html", "schemas/*.json"]
+
+[project.scripts]
+tool3 = "satquery.tools.tool3.cli:main"
+tool3-demo = "satquery.tools.tool3.demo:main"
+tool3-evaluate = "satquery.tools.tool3.evaluate_cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

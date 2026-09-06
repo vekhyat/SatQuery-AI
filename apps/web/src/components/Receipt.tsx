@@ -110,7 +110,7 @@ export function Receipt({
       <div className="receipt-footer">
         <span>
           <Info size={15} />
-          {demo || result?.receipt.trace.some((s) => s.status === 'stub') || result?.receipt.rejected
+          {demo || result?.receipt.trace.some((s) => s.status === 'stub') || result?.receipt.rejected || typeof result?.facts.confidence_status === 'string'
             ? 'Confidence: not measured'
             : result
               ? `Confidence: ${Math.round(result.confidence * 100)}%`

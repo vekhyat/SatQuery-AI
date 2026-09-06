@@ -16,7 +16,7 @@ The first prototype is for the SIH team demonstration. A satellite-image analyst
 
 ## Capabilities and Constraints
 
-The existing Python API exposes health, upload, and query endpoints. Its checker verifies GeoTIFF metadata and exact-grid compatibility; its deterministic router selects single_image, change, optical_sar, or reject. Specialist analysis tools are currently stubs. Visual concepts must label satellite imagery, overlays, and proposed analysis findings as illustrative, and must not imply live analysis or validated accuracy.
+The existing Python API exposes health, upload, and query endpoints. Its checker verifies GeoTIFF metadata and exact-grid compatibility; its deterministic router selects single_image, change, optical_sar, or reject. Optical–SAR Tool 3 computes threshold candidate maps; single-image and change tools remain stubs. Visual concepts must label satellite imagery, overlays, and proposed analysis findings as illustrative, and must not imply live analysis or validated accuracy.
 
 ## Operating Context
 

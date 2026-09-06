@@ -6,6 +6,7 @@ import { ThinkingOrb } from 'thinking-orbs';
 import { FindingLeader } from './components/FindingLeader';
 import { Receipt } from './components/Receipt';
 import { SceneViewer } from './components/SceneViewer';
+import { Tool3Maps, tool3LayerUrls } from './components/Tool3Maps';
 import { checkHealth, queryScenes, uploadScene } from './lib/api';
 import { createDemoResult, createDemoScenes } from './lib/demo';
 import {
@@ -45,6 +46,7 @@ export default function App() {
   const viewMode: Mode = isDemo ? current.mode : result && result.task !== 'reject' ? result.task : actualCount < 2 ? 'single_image' : 'change';
   const rejected = result?.receipt.rejected ?? false;
   const hasStub = result?.receipt.trace.some(s => s.status === 'stub') ?? false;
+  const tool3Maps = isDemo ? null : tool3LayerUrls(result);
   const dirtyQuestion = !!result && current.question !== current.submittedQuestion;
   const showCallout = isDemo && !rejected && showOverlay && !!result && current.mode === 'change';
   const routedLabel = result && result.task !== 'reject' ? MODE_NAMES[result.task] : null;
@@ -185,7 +187,7 @@ export default function App() {
       </aside>
       <main id="workspace" className="workspace">
         <div className="workspace-heading"><h1>{isDemo ? TITLES[current.mode] : current.submittedQuestion || 'What do you want to explore?'}</h1>{isDemo && <button className="text-button use-scenes" type="button" onClick={addScenes} disabled={busy}>Use my scenes <ArrowUpRight size={15} /></button>}</div>
-        {helpOpen && <section className="help-panel"><div><p className="help-title">From question to evidence.</p><p>Attach one or two GeoTIFFs and ask a question. The router selects the analysis from your files. Open the receipt to inspect each step.</p><p><strong>Illustrative data</strong> is a prepared example. Your own scenes call the local API; analysis tools are stubs, so no measured findings are returned yet.</p></div><button className="icon-button" type="button" aria-label="Close help" onClick={() => setHelpOpen(false)}><X size={18} /></button></section>}
+        {helpOpen && <section className="help-panel"><div><p className="help-title">From question to evidence.</p><p>Attach one or two GeoTIFFs and ask a question. The router selects the analysis from your files. Open the receipt to inspect each step.</p><p><strong>Illustrative data</strong> is a prepared example. Your own scenes call the local API. Optical + SAR produces threshold-based candidate maps from named multispectral bands and calibrated radar. Single-image and change tools are still stubs.</p></div><button className="icon-button" type="button" aria-label="Close help" onClick={() => setHelpOpen(false)}><X size={18} /></button></section>}
         <form className="query-form" onSubmit={runQuery}>
           <BorderBeam className="query-beam" size="line" theme="light" colorVariant="sunset" strength={reducedMotion ? 0 : busy ? 0.65 : queryFocused ? 0.25 : 0} active={!reducedMotion && (queryFocused || busy)}>
             <div className="query-input-wrap"><label className="sr-only" htmlFor="question">Question about your satellite scenes</label><input id="question" ref={queryRef} value={current.question} maxLength={500} disabled={busy} onFocus={() => setQueryFocused(true)} onBlur={() => setQueryFocused(false)} onChange={e => update({ question: e.target.value })} placeholder="Ask a question about your scenes…" /><button className="ask-button" type="submit" disabled={busy || !current.question.trim() || !actualCount}>{busy ? <><ThinkingOrb state="connecting" size={20} paused={reducedMotion} />Working…</> : <>Ask SatQuery<ArrowRight size={23} strokeWidth={1.5} /></>}</button></div>
@@ -200,7 +202,7 @@ export default function App() {
         ))}
         {!isDemo && actualCount > 0 && <div className="question-suggestions"><span>Try asking</span>{questionSuggestions(current.scenes).map(mode => <button className="text-button" type="button" disabled={busy} key={mode} onClick={() => { update({ question: QUESTIONS[mode] }); queryRef.current?.focus(); }}>{mode === 'single_image' ? 'Describe land cover' : mode === 'change' ? 'What changed?' : 'Compare optical + SAR'}<ArrowUpRight size={12} /></button>)}</div>}
         {!emptyLive && <div className={'mode-bar' + (result ? ' has-result' : '')}>
-          {rejected ? <p className="route-status">These inputs could not be routed</p> : routedLabel ? <p className="route-status"><GitBranch size={13} />Routed to {routedLabel}</p> : <p className="route-status idle">The router chooses after you ask</p>}
+          {rejected ? <p className="route-status">These inputs could not be analysed</p> : routedLabel ? <p className="route-status"><GitBranch size={13} />Routed to {routedLabel}</p> : <p className="route-status idle">The router chooses after you ask</p>}
           <div className="route-indicators" aria-label="Router-selected analysis mode">{MODES.map(mode => <span key={mode} className={result?.task === mode ? 'selected' : ''}>{MODE_NAMES[mode]}{result?.task === mode && <Check size={13} />}</span>)}</div>
         </div>}
         <div id="analysis-panel">
@@ -208,7 +210,7 @@ export default function App() {
           {busy && <div className="activity" role="status"><ThinkingOrb state="connecting" size={20} paused={reducedMotion} /><span>{activity}</span></div>}
           {!emptyLive && <div className={'evidence-stack' + (showCallout ? ' has-callout' : '')}>
             <FindingLeader active={showCallout} />
-            <SceneViewer scenes={current.scenes} mode={viewMode} showOverlay={showOverlay && !!result && !rejected} rejected={rejected} busy={busy} onOverlayChange={setShowOverlay} />
+            {tool3Maps && result ? <Tool3Maps key={tool3Maps.fused} result={result} urls={tool3Maps} busy={busy} /> : <SceneViewer scenes={current.scenes} mode={viewMode} showOverlay={showOverlay && !!result && !rejected} rejected={rejected} busy={busy} onOverlayChange={setShowOverlay} />}
             {result || busy ? (
               <section className={'answer-panel ' + (rejected ? 'answer-rejected' : '')} aria-label="Analysis answer" aria-live="polite">
                 <div className="answer-icon">{rejected ? <AlertTriangle size={21} /> : <Check size={21} />}</div>
