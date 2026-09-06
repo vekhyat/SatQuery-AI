@@ -1,5 +1,30 @@
 # Tool 3 integration verification
 
+## Local merge verification, 2026-09-06
+
+Rechecked the integrated branch at `573b7bb` in the Desktop checkout. The first
+suite run exposed an intermittent Windows `PermissionError` when renaming a
+completed temporary run directory. Publication now retries that operation up to
+eight times with bounded delays. Two API regression tests verify recovery from
+a temporary lock and cleanup plus worker release after a persistent failure.
+
+- Full suite after the fix: **108 tests and 46 subtests passed** (8.70 seconds).
+- `python -m pip check`: no broken requirements.
+- TypeScript/Vite production build and Python source/wheel builds passed.
+- Both `verify-tool3.cjs` and `verify-live-flow.cjs` passed against the combined
+  server on port 5183 after restarting it with the fix. Tool 3 uploads, three map
+  tabs, counts, confidence text, existing routes, rejections, previews and receipt
+  exports were checked. No browser JavaScript errors were reported.
+- Desktop and 390-pixel mobile screenshots were inspected; the mobile page had
+  no horizontal overflow. Evidence is saved locally under `runtime/` as
+  `tool3-browser-desktop.png`, `tool3-browser-desktop-mobile.png` and the matching
+  JSON result. Generated artifacts are ignored by Git.
+
+These checks use synthetic fixtures and verify software behavior, not accuracy
+on real satellite observations. Dependency deprecation warnings remain.
+
+## Original handoff verification
+
 Verified locally on 2026-09-06 against team repository base `4b01f1c`.
 
 - **106 Python tests passed**, including the existing API/storage/preview suite, core raster tests, and real shared-contract integration tests. Pytest additionally reported 46 passing subtests.

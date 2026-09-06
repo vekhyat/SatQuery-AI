@@ -34,6 +34,18 @@ def publish_latest(temporary, destination):
                 time.sleep(min(.02 * 2 ** attempt, .16))
 
 
+def publish_run(stage, destination):
+    """Keep complete runs atomic while tolerating temporary Windows file locks."""
+    for attempt in range(8):
+        try:
+            stage.rename(destination)
+            return
+        except PermissionError:
+            if attempt == 7:
+                raise
+            time.sleep(min(.02 * 2 ** attempt, .16))
+
+
 @dataclass(frozen=True)
 class Config:
     sar_units: str = "auto"
@@ -397,7 +409,7 @@ def run_pipeline(sources, output_dir, config=None):
                  "sar_water_mask": (sw, sv), "sar_builtup_mask": (sb, sv),
                  "fused_water_mask": (fw, union_valid), "fused_builtup_mask": (fb, union_valid)}
         write_outputs(stage, result, maps, masks, grid, indices, bands, sar_db)
-        stage.rename(final_dir)
+        publish_run(stage, final_dir)
     latest_temp = output_dir / f".latest_{run_id}.json"
     latest_temp.write_text(json.dumps({"run_id": run_id, "result": str(final_dir / "result.json"),
                                        "report": str(final_dir / "report.html")}, indent=2), encoding="utf-8")

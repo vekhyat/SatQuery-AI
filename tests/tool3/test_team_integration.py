@@ -134,3 +134,44 @@ def test_mounted_web_api_returns_urls_under_api_prefix(settings, tmp_path, pack_
         for url in result['facts']['layer_urls'].values():
             assert url.startswith('/api/artifacts/tool3/')
             assert client.get(url).status_code == 200
+
+
+def test_run_publication_retries_temporary_windows_lock(client, pack_c, monkeypatch):
+    original = Path.rename
+    attempts = []
+
+    def locked_rename(source, target):
+        if source.name.startswith('.pending_'):
+            attempts.append(source)
+            if len(attempts) <= 2:
+                raise PermissionError('Windows temporarily locked the completed run')
+        return original(source, target)
+
+    monkeypatch.setattr(Path, 'rename', locked_rename)
+    response = execute(client, attach(client, pack_c))
+    assert response.status_code == 200, response.text
+    assert len(attempts) == 3
+    for url in response.json()['facts']['layer_urls'].values():
+        assert client.get(url).status_code == 200
+
+
+def test_run_publication_permanent_lock_fails_without_partial_results(client, pack_c, monkeypatch):
+    original = Path.rename
+    attempts = []
+
+    def locked_rename(source, target):
+        if source.name.startswith('.pending_'):
+            attempts.append(source)
+            raise PermissionError('Output permission remains denied')
+        return original(source, target)
+
+    monkeypatch.setattr(Path, 'rename', locked_rename)
+    monkeypatch.setattr('satquery.tools.tool3.pipeline.time.sleep', lambda _: None)
+    response = execute(client, attach(client, pack_c))
+    assert response.status_code == 500
+    assert response.json()['error']['code'] == 'tool3_io_error'
+    assert len(attempts) == 8
+    output = client.app.state.service.tool_context().output_dir
+    assert not list(output.iterdir())
+    assert client.app.state.service.tool_slots.acquire(blocking=False)
+    client.app.state.service.tool_slots.release()
