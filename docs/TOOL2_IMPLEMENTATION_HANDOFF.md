@@ -971,3 +971,109 @@ orchestration behavior.
 Tool 2 frontend rendering remains unimplemented. The full real-checkpoint
 shared-application CUDA demonstration remains Phase 3B9. No LLM, VQA layer, or
 direction-inference heuristic was added.
+
+## Phase 3B8 — dedicated Tool 2 change-analysis frontend view
+
+### Purpose and rendering boundary
+
+`Tool2ChangeView` is a dedicated evidence view for successful real Tool 2
+results. It is deliberately not a generic specialist renderer: Tool 3 retains
+`Tool3Maps`, and the prior `SceneViewer` remains the fallback for Tool 1,
+stubs, rejected results, and incomplete results. App selection is explicit:
+`Task.OPTICAL_SAR` plus `optical_sar_v1` renders Tool 3; `Task.CHANGE` plus
+`change_mci_v1` and a non-rejected receipt renders Tool 2. This prevents a
+similarly shaped response from selecting a specialist view by branch order.
+
+### Evidence modes and legend
+
+The view provides keyboard-accessible Compare, Overlay, and Semantic mask
+buttons with a visible selected state. Compare reuses the existing
+`SceneViewer` and therefore preserves the already established before/after
+ordering and labels. Overlay displays the worker-produced `overlay.png`; the
+mask mode displays `semantic_mask_rgb.png` and its text legend. The verified
+runtime palette is black for unchanged/background, yellow for road change, and
+red for building change. Labels intentionally say only “road change” and
+“building change”: mask classes do not establish construction, removal, or
+other temporal direction.
+
+### Facts, answer, and confidence
+
+The main answer panel continues to own `answer_text`, warnings, and the
+receipt's “Confidence: not measured” presentation. `Tool2ChangeView` adds only
+the exact model caption, existing changed pixel/statistic facts, and supplied
+physical area facts. It formats counts with separators and percentages to two
+decimals, but does not recompute a denominator or derive an area. No-change
+results retain the caption, show 0.00% / zero pixels, suppress zero road and
+building cards, omit unavailable area, and provide a bounded “No detected
+change” status. Component counts are not shown as object counts.
+
+### Artifacts, expiry, and URL safety
+
+The view consumes only the backend-provided artifact values for overlay,
+semantic mask, binary mask, and components JSON. It provides downloads for
+those public evidence records only; private `result.json` and `access.json`
+are never constructed or displayed. A small view-model parser accepts only
+canonical root-relative paths, rejecting external, `file:`, protocol-relative,
+backslash, query/hash, and traversal-shaped values. It preserves mount-aware
+paths such as `/api/artifacts/tool2/...`.
+
+Artifact image errors are tracked per URL. An expired overlay, for example,
+becomes a bounded “This evidence item is no longer available” item while the
+caption, statistics, downloads, and semantic-mask mode remain usable. The
+view does not expose a raw URL or server error. Downloads rely on the secure
+artifact endpoint already established in Phase 3B6.
+
+### Accessibility, responsive behavior, and timeout
+
+Images have useful mode-specific alt text, the semantic legend contains both
+swatches and text, mode controls are native buttons with `aria-pressed`, and
+downloads have labelled links. The layout collapses caption/statistics columns
+on narrow screens while retaining usable evidence controls. The frontend query
+timeout changed from 15 to 30 seconds to give a real Tool 2 request appropriate
+headroom; health (15 seconds) and uploads (120 seconds) are unchanged. This is
+only client patience, not a substitute for worker preloading.
+
+### Tests and Tool 3 regression
+
+`tests/web/verify-tool2.cjs` intercepts only the external API/artifact boundary
+and exercises the built React notebook: upload/preview flow, real Tool 2
+selection, caption, formatting, optional area, confidence sentinel, compare /
+overlay / mask modes, legend, public downloads, unsafe URL suppression,
+no-change display, Tool 3 specialist selection, Tool 1/rejected fallback, and
+a per-artifact expiry without collapsing the view.
+`tests/web/verify-tool3.cjs` remains the regression coverage for Tool 3's three
+maps, controls, downloads, confidence, and responsive layout.
+
+### Problems encountered and exact fixes
+
+* **Symptom:** the first Tool 2 browser test timed out waiting for a change
+  evidence region. **Root cause:** the pre-3B8 app had only Tool 3 specialist
+  rendering and otherwise used `SceneViewer`. **Fix:** introduce the narrowly
+  eligible `Tool2ChangeView`. **Why correct:** the test proves the user-visible
+  missing capability without modifying a backend layer.
+* **Symptom:** Playwright's default missing-locator wait left child processes
+  active during the red test. **Root cause:** its general default wait was much
+  longer than this focused capability check. **Fix:** give the new missing-view
+  assertions a five-second explicit timeout and terminate only those test
+  processes. **Why correct:** it makes the expected red condition bounded and
+  does not alter application behavior.
+* **Symptom:** the historic `verify-live-flow.cjs` expected a 64×96 change pair
+  to complete through the former change stub. **Root cause:** it predates the
+  active Tool 2 MCI gate, which correctly rejects non-256×256 imagery before
+  inference. **Fix:** leave that out-of-scope historic script unchanged and
+  cover Tool 1/rejection fallback through the new frontend boundary fixture.
+  **Why correct:** weakening the real worker's approved input policy merely to
+  preserve an obsolete browser fixture would be incorrect.
+* **Symptom:** an encoded traversal-shaped artifact URL was normalized by the
+  browser URL parser and appeared as a download. **Root cause:** validation
+  checked only the normalized pathname. **Fix:** reject raw and decoded `.` /
+  `..` / backslash path segments before URL construction, with a browser
+  regression assertion. **Why correct:** the frontend now refuses unsafe input
+  even before the already-secure backend endpoint receives it.
+
+### Remaining limitations
+
+The UI is backed by the existing secure local artifact service; it does not add
+multi-user authorization, a frontend object-count interpretation, a VQA layer,
+or any MCI inference behavior. The full real-checkpoint shared-application CUDA
+demonstration remains Phase 3B9.

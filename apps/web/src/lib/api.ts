@@ -1,7 +1,7 @@
 import type { ErrorEnvelope, ResultEnvelope, UploadResponse } from './types';
 
 const HEALTH_TIMEOUT_MS = 15_000;
-const QUERY_TIMEOUT_MS = 15_000;
+const QUERY_TIMEOUT_MS = 30_000;
 const UPLOAD_TIMEOUT_MS = 120_000;
 
 export class SatQueryApiError extends Error {
