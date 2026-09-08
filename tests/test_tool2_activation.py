@@ -98,7 +98,8 @@ def test_change_query_executes_registered_adapter_through_fake_http_worker(
         "type": "change_mask",
         "file": "/artifacts/tool2/" + "b" * 32 + "/overlay.png",
     }
-    assert artifact_response.status_code == 404
+    assert artifact_response.status_code == 200
+    assert artifact_response.headers["content-type"].split(";", 1)[0] == "image/png"
     assert "question" not in seen_requests[0]
     assert seen_requests[0]["before_path"].endswith(uploads[0] + "\\source.tif")
     assert seen_requests[0]["after_path"].endswith(uploads[1] + "\\source.tif")

@@ -752,3 +752,140 @@ frontend are unchanged. No real shared-app checkpoint request was required in
 this phase; the mandatory real end-to-end run remains Phase 3B9. The standalone
 worker, protocol, MCI architecture, checkpoint, and `.venv-mci` were not
 modified.
+
+## Phase 3B6 — securely serve completed change-analysis artifacts
+
+### Why serving is separate from model execution
+
+The MCI worker writes evidence under the server-owned Tool 2 output root, but
+neither worker output nor a URL returned by an adapter grants browser access by
+itself. The main API now owns the separate authorization and publication
+boundary. It exposes only completed, allowlisted evidence whose two source
+uploads are still valid according to `AssetStore` retention semantics. The
+worker, worker protocol, MCI model, checkpoint, router, registry, specialist
+execution, composer, and frontend remain unchanged.
+
+### Disk and URL layout
+
+Tool 2 output is always resolved from:
+
+```text
+<AssetStore.root>/tool2-results/<run_id>/
+```
+
+The main API serves it only through:
+
+```text
+/artifacts/tool2/<run_id>/<filename>
+```
+
+When the API is mounted by `apps.web.server`, the existing root-path-aware
+query code produces `/api/artifacts/tool2/...`; the same mounted FastAPI route
+serves that URL. No `/api` prefix is duplicated or hardcoded into the adapter.
+
+### Run ID, allowlist, and private files
+
+`satquery.tools.change_mci_artifacts` requires the worker's exact lowercase
+run-ID format: `[a-f0-9]{32}`. Empty, uppercase, short/long, whitespace,
+period, slash, backslash, and traversal-like values are rejected before path
+construction.
+
+The public allowlist is exact:
+
+* `overlay.png`
+* `semantic_mask_rgb.png`
+* `semantic_mask_raw.png`
+* `change_binary_mask.png`
+* `components.json`
+
+Everything else is private even if physically present, including `result.json`,
+`access.json`, before/after copies, checkpoints, logs, arbitrary PNGs, TIFFs,
+and JSON files. The resolver never accepts a client-supplied root or nested
+filename.
+
+### Completion and provenance validation
+
+Before serving one allowlisted file, the resolver requires all of the following:
+
+1. The canonical run directory is immediately beneath the canonical Tool 2
+   root; symlink/reparse escapes fail containment.
+2. The requested file is a regular file immediately beneath that run directory.
+3. Private `result.json` exists, parses to an object, declares
+   `task: "change_analysis"`, advertises itself, and advertises the requested
+   artifact through the worker's exact `evidence` key and canonical path.
+4. Private `access.json` exists and has exactly `asset_ids`, `run_id`, and
+   `tool`; it must name the same run, `change_mci_v1`, and exactly two distinct
+   canonical AssetStore UUID strings.
+5. `AssetStore.load()` succeeds for both source IDs. A missing, expired, or
+   deleted upload therefore makes old evidence unavailable without deleting the
+   evidence itself.
+
+`result.json` and `access.json` are never returned to the browser. They are
+read only as private completion/provenance records. Any malformed, missing, or
+inconsistent item is reduced to the same safe 404 response, so local paths and
+private state do not leak.
+
+### Containment, media types, and headers
+
+Every root, run, private manifest, and artifact path uses canonical
+`Path.resolve(strict=True)` checks and parent equality; string-prefix checks are
+not used. This prevents root-prefix collisions and catches symlink escapes when
+Windows permits their creation. The public route assigns media types from the
+allowlist only: PNG evidence is `image/png`, and `components.json` is
+`application/json`. Responses include `Cache-Control: no-store` and
+`X-Content-Type-Options: nosniff`. Images remain inline-renderable; the JSON
+artifact is retrievable without a user-controlled disposition filename.
+
+### Tool 3 comparison
+
+Tool 3's existing `/artifacts/tool3/...` endpoint and resolver were not
+modified. Tool 2 follows the same main-API ownership, completed-run, source
+lifetime, `FileResponse`, and security-header principles, while adding its own
+strict worker run-ID and evidence-manifest contract rather than forcing Tool 3
+into a new generic abstraction.
+
+### Tests
+
+`tests/test_tool2_artifact_access.py` covers all five successful artifact
+fetches, exact media types and headers, private/unknown files, nested and
+encoded traversal attempts, malformed run IDs, malformed/missing access and
+completion records, mismatched tool/run identifiers, noncanonical/duplicate
+asset IDs, unadvertised or missing evidence, source deletion, root-prefix
+collision, and mounted `/api` behavior. A Windows symlink-escape test is
+skipped with its exact OS error if the local account cannot create symlinks.
+
+The fake worker writes the same private completion-marker shape the real worker
+writes. The end-to-end main test therefore proves upload -> query -> Tool 2
+public URLs -> HTTP fetch, including bytes generated by the fake worker, with
+no PyTorch, CUDA, checkpoint, or direct filesystem knowledge on the browser
+side.
+
+### Problems encountered and exact fixes
+
+* **Symptom:** the new success tests returned 404. **Root cause:** Phase 3B5
+  intentionally had no Tool 2 artifact route. **Fix:** add the separate
+  allowlisted resolver and main API route. **Why correct:** the red test proved
+  the missing public boundary rather than changing MCI execution.
+* **Symptom:** the first fake-worker query-to-fetch regression still returned
+  404 after the route existed. **Root cause:** the Phase 3B5 fake worker wrote
+  evidence files but not the private `result.json` completion marker written by
+  the real worker. **Fix:** make the test-only fake write a minimal, structurally
+  faithful completion record. **Why correct:** the production worker and its
+  protocol are unchanged; the test now exercises the actual publication rule.
+* **Symptom:** a first search command for worker evidence had an invalid regular
+  expression. **Root cause:** an unescaped bracket in the read-only search.
+  **Fix:** rerun the audit with separate literal expressions. **Why correct:**
+  no repository file or behavior changed in the failed command.
+* **Symptom:** Windows refused the symlink fixture. **Root cause:** the current
+  account does not have symlink creation permission. **Fix:** skip only that
+  test with the exact platform reason while preserving canonical containment in
+  production and covering root-prefix escape. **Why correct:** the suite does
+  not claim a symlink test passed when the OS prevented setup.
+
+### Remaining limitations
+
+Composer changes and a dedicated frontend Tool 2 viewer are still outside this
+phase. The full real-checkpoint shared-application demonstration remains Phase
+3B9. Artifact access is local API access control based on retained upload
+provenance; multi-user authentication/authorization is a future application
+concern.

@@ -28,6 +28,23 @@ def successful_mci_client(
             "components.json",
         ):
             (run_directory / filename).write_bytes(b"fake-worker-artifact")
+        result_path = run_directory / "result.json"
+        result_path.write_text(
+            json.dumps(
+                {
+                    "task": "change_analysis",
+                    "evidence": {
+                        "semantic_mask": str(run_directory / "semantic_mask_raw.png"),
+                        "semantic_mask_rgb": str(run_directory / "semantic_mask_rgb.png"),
+                        "binary_mask": str(run_directory / "change_binary_mask.png"),
+                        "overlay": str(run_directory / "overlay.png"),
+                        "components": str(run_directory / "components.json"),
+                        "result": str(result_path),
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
         response = success_payload(payload["request_id"])
         response["run_id"] = run_id
         response["warnings"] = [
