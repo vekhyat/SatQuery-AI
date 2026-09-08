@@ -1,5 +1,8 @@
 .env
 .venv/
+.venv-mci/
+.uv-cache-mci/
+.uv-python-mci/
 venv/
 __pycache__/
 *.pyc
@@ -21,3 +24,6 @@ runtime/
 .idea/
 .vscode/
 TEAM_LEADER_BRIEF.md
+/Change-Agent-main/
+/LEVIR-MCI-dataset/
+/outputs/
