@@ -154,8 +154,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         responses={404: {"model": ErrorEnvelope}, 422: {"model": ErrorEnvelope}},
     )
     def query(payload: QueryRequest, request: Request) -> ResultEnvelope:
-        prefix = request.scope.get("root_path", "").rstrip("/") + "/artifacts/tool3"
-        return service.query(payload.asset_ids, payload.question, artifact_base_url=prefix)
+        artifact_root = request.scope.get("root_path", "").rstrip("/") + "/artifacts"
+        return service.query(payload.asset_ids, payload.question, artifact_root_url=artifact_root)
 
     @app.get("/artifacts/tool3/{run_id}/{filename}")
     def tool3_artifact(run_id: str, filename: str) -> FileResponse:

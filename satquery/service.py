@@ -20,7 +20,7 @@ from satquery.contracts import (
 from satquery.registry import execute_tool
 from satquery.router import ROUTER_VERSION, route_query, router_trace
 from satquery.storage import AssetStore
-from satquery.tools.context import ToolContext
+from satquery.tools.context import ToolContext, build_tool_context
 from satquery.tools.optical_sar import ToolInputError
 
 
@@ -29,8 +29,18 @@ class SatQueryService:
         self.store = store
         self.tool_slots = BoundedSemaphore(1)
 
-    def tool_context(self, artifact_base_url: str = "/artifacts/tool3") -> ToolContext:
-        return ToolContext(self.store, self.store.root / "tool3-results", artifact_base_url, self.tool_slots)
+    def tool_context(
+        self,
+        task: Task = Task.OPTICAL_SAR,
+        *,
+        artifact_root_url: str = "/artifacts",
+    ) -> ToolContext:
+        return build_tool_context(
+            task=task,
+            store=self.store,
+            artifact_root_url=artifact_root_url,
+            slots=self.tool_slots,
+        )
 
     async def upload(
         self,
@@ -52,7 +62,7 @@ class SatQueryService:
             raise
         return UploadResponse.model_validate(record.model_dump(exclude={"stored_name"}))
 
-    def query(self, asset_ids: list[UUID], question: str, *, artifact_base_url: str = "/artifacts/tool3") -> ResultEnvelope:
+    def query(self, asset_ids: list[UUID], question: str, *, artifact_root_url: str = "/artifacts") -> ResultEnvelope:
         self.store.cleanup_expired()
         assets = [self.store.load(asset_id) for asset_id in asset_ids]
         asset_warnings = [
@@ -85,8 +95,13 @@ class SatQueryService:
 
         ordered_by_id = {asset.asset_id: asset for asset in assets}
         ordered_assets = [ordered_by_id[asset_id] for asset_id in plan.ordered_asset_ids]
+        context = (
+            self.tool_context(plan.task, artifact_root_url=artifact_root_url)
+            if plan.task in {Task.CHANGE, Task.OPTICAL_SAR}
+            else None
+        )
         try:
-            tool_result = execute_tool(plan.tool or "", ordered_assets, plan, self.tool_context(artifact_base_url))
+            tool_result = execute_tool(plan.tool or "", ordered_assets, plan, context)
         except ToolInputError as exc:
             trace.append(TraceStep(stage="tool", status="rejected", message=exc.message,
                                    details={"code": exc.code}))

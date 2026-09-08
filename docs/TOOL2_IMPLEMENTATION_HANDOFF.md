@@ -469,3 +469,112 @@ This adapter is intentionally inactive. No router/registry/service/client
 wiring, generic specialist error model, ToolContext expansion, artifact API,
 composer, frontend, or broad GeoTIFF preprocessing was implemented. The next
 phase is **3B4 only**.
+
+## Phase 3B4 — task-specific specialist execution context
+
+### Goal and ownership
+
+`ToolContext` is the server-owned bundle of trusted execution resources that a
+specialist may use: the `AssetStore`, its private output directory, the public
+artifact URL base, and the application semaphore. It is built by the service,
+not by a specialist, so query text and route parameters cannot invent storage
+paths or publication URLs.
+
+The existing `ToolContext` dataclass remains unchanged. Tool 2 does not get a
+parallel context class or Tool-2-specific fields. In particular, worker URL,
+HTTP client, checkpoint, CUDA device, question text, and model configuration do
+not belong in this storage/execution context.
+
+`satquery.tools.context.build_tool_context` now maps supported specialist tasks
+to their server-owned layout:
+
+* `Task.CHANGE` uses `<store.root>/tool2-results` and
+  `<artifact-root>/tool2`.
+* `Task.OPTICAL_SAR` uses `<store.root>/tool3-results` and
+  `<artifact-root>/tool3`.
+
+`Task.SINGLE_IMAGE` and `Task.REJECT` have no specialist artifact context and
+are rejected explicitly by the builder. The service passes `None` to the Tool
+1 stub, preserving its externally visible behavior without inventing a Tool 1
+artifact namespace. Change routes receive the prospective Tool 2 context, but
+the registry still executes `change_stub_v0`; no worker call is made.
+
+### Tool 3 regression protection
+
+Before Phase 3B4, `SatQueryService.tool_context()` produced:
+
+* `store`: the service's exact `AssetStore` object
+* `output_dir`: `<store.root>/tool3-results`
+* `artifact_base_url`: `/artifacts/tool3` by default
+* `slots`: the service's exact `BoundedSemaphore(1)` object
+
+Those values and object identities are unchanged after Phase 3B4. The
+no-argument `service.tool_context()` call remains Tool 3-compatible because the
+existing Tool 3 artifact endpoint uses it. Existing integration tests prove
+the disk layout, default and `/api`-mounted artifact URLs, access controls,
+run publication, and busy/release behavior are unchanged. No Tool 3 source file
+was modified.
+
+The service still owns one `BoundedSemaphore(1)`, and Tool 3 still acquires and
+releases it inside `optical_sar_v1`. Tool 2's context carries the same field
+only because it is part of the unchanged dataclass; `change_mci_v1` does not
+acquire it. MCI inference serialization remains exclusively in the isolated
+worker's `BoundedSemaphore(1)`. The service does not add a second MCI queue or
+GPU concurrency mechanism.
+
+### Artifact-root normalization
+
+The API query route now supplies the shared root (`/artifacts`, or for a
+mounted app `/api/artifacts`) rather than a Tool-3-specific URL. The context
+builder removes trailing slashes once and appends exactly one task segment.
+Thus `/artifacts/` becomes `/artifacts/tool2` or `/artifacts/tool3`, and
+`/api/artifacts/` preserves the `/api` mount prefix without a double slash.
+
+Inputs already ending in `/tool2` or `/tool3` are rejected as caller mistakes;
+this prevents `/artifacts/tool3/tool3`. This is intentionally a small local
+normalization rule rather than a new general URL utility. The public Tool 3
+artifact endpoint itself was not changed, and a Tool 2 artifact endpoint still
+does not exist.
+
+### Files and tests
+
+Phase 3B4 creates `tests/test_tool_context.py` and modifies only:
+
+* `satquery/tools/context.py`
+* `satquery/service.py`
+* the query route's shared artifact-root argument in `apps/api/main.py`
+* this handoff document
+
+Focused tests cover exact Tool 2 and Tool 3 output paths, default and mounted
+URLs, trailing-slash normalization, store/semaphore identity, unsupported
+tasks, and protection from an already specialist-suffixed root. Existing Tool
+3 team-integration and main API suites provide the behavioral regression
+coverage. The main import-boundary test confirms these shared modules still do
+not load Torch or `experiments.tool2_mci`. No checkpoint, worker, or PyTorch is
+needed for Phase 3B4.
+
+### Problems encountered and exact fixes
+
+* **Symptom:** the first targeted import-boundary command failed before running
+  a test. **Root cause:** the command guessed a nonexistent unittest class name;
+  the real class is `ChangeMciProtocolTest`. **Fix:** inspect the test module and
+  run the exact method selector. **Why correct:** the real import-boundary test
+  then passed unchanged; no product code or test semantics were altered.
+* **Symptom:** after introducing the builder, the unchanged mounted Tool 3 test
+  failed because `service.query` supplied `/api/artifacts/tool3` positionally as
+  the new `task` argument. **Root cause:** the pre-3B4 API/service boundary
+  passed a final Tool 3 URL, while the approved builder requires a task and a
+  shared artifact root. **Fix:** the API supplies `/api/artifacts`, and the
+  service supplies `plan.task` plus that root to the builder. **Why correct:**
+  task-specific suffixing now has one owner, the mounted Tool 3 URLs return to
+  their exact former values, and Tool 2 can receive `/api/artifacts/tool2`
+  without special API logic.
+
+### Remaining limitations
+
+Tool 2 remains inactive: the router still selects `change_stub_v0`, the
+registry does not contain `change_mci_v1`, and the service makes no MCI HTTP
+call. Generic specialist error translation, worker configuration/wiring,
+readiness behavior in the main service, and activation belong to **Phase 3B5
+only**. Tool 2's public artifact endpoint, composer changes, and frontend work
+remain later phases.
