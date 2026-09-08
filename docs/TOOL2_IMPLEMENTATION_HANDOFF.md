@@ -578,3 +578,177 @@ call. Generic specialist error translation, worker configuration/wiring,
 readiness behavior in the main service, and activation belong to **Phase 3B5
 only**. Tool 2's public artifact endpoint, composer changes, and frontend work
 remain later phases.
+
+## Phase 3B5 — activate the MCI specialist in SatQuery
+
+### What activation means
+
+The deterministic `Task.CHANGE` route now selects `change_mci_v1`. The
+application registry contains both the active implementation and the retained
+`change_stub_v0` development stub, but routing never consults worker readiness
+and never falls back to the stub. A missing, busy, timed-out, or failed worker
+therefore remains an explicit infrastructure error instead of being presented
+as a successful lower-quality analysis.
+
+The active backend flow is:
+
+```text
+upload/checker -> deterministic router -> per-app registry -> change_mci_v1
+-> reused MCIWorkerClient -> localhost worker -> ToolResult -> ResultEnvelope
+```
+
+The service only handles the shared specialist contract. It does not import an
+MCI model, parse worker protocol JSON, make HTTP calls directly, or know Tool 2
+caption/statistics details.
+
+### Generic specialist execution errors
+
+`satquery.errors.ToolExecutionError` extends `SatQueryError` with task-neutral
+`http_status`, `code`, `message`, `retryable`, `as_rejection`, and optional safe
+`details`. It never stores a traceback, exception representation, worker body,
+checkpoint path, or source path.
+
+The service catches this one abstraction. If `as_rejection` is true, the error
+becomes a rejected `ResultEnvelope` with a tool-stage rejection trace. If false,
+it is re-raised through the existing safe `SatQueryError` API handler and
+becomes an HTTP `ErrorEnvelope`. Infrastructure failures are never converted
+into a semantically successful or user-input rejection result.
+
+The Tool 2 mapping is:
+
+| Code | HTTP | Retryable | Rejection | Meaning |
+|---|---:|---:|---:|---|
+| `UNSUPPORTED_IMAGE` | 422 | no | yes | user can supply an exact supported TIFF |
+| `WORKER_BUSY` | 429 | yes | no | worker capacity is occupied |
+| `MODEL_NOT_READY` | 503 | no | no | worker model lifecycle is not ready |
+| `WORKER_UNAVAILABLE` | 503 | yes | no | transport cannot reach worker |
+| `WORKER_TIMEOUT` | 504 | yes | no | analysis exceeded the configured timeout |
+| `INVALID_WORKER_RESPONSE` | 502 | no | no | malformed/mismatched/untrusted worker result |
+| `INFERENCE_FAILED` | 502 | no | no | remote inference failed safely |
+| `ARTIFACT_WRITE_FAILED` | 502 | no | no | remote artifact publication failed |
+| `INPUT_FILE_NOT_FOUND` | 502 | no | no | worker could not see a validated store path |
+| `INVALID_REQUEST` | 502 | no | no | worker rejected an internally generated request |
+| `WORKER_TRANSPORT_ERROR` | 502 | yes | no | other safe HTTP transport failure |
+| `CUDA_OOM` | 503 | no | no | worker GPU memory is insufficient |
+
+Unknown client codes are reduced to `INVALID_WORKER_RESPONSE`. Messages are
+fixed application text rather than raw worker or HTTPX exception strings.
+Failure to write the main-side private `access.json` is a local
+`ARTIFACT_WRITE_FAILED` with HTTP 500.
+
+Tool 2 preflight rejects unsupported 256/three-band/uint8/optical/grid inputs
+before constructing a worker call. Invalid plans, missing context, request-ID
+mismatch, and missing/unsafe advertised artifacts are infrastructure defects,
+not user rejections.
+
+### Tool 3 migration and unchanged behavior
+
+`ToolInputError` now subclasses `ToolExecutionError` with
+`as_rejection=True`, while retaining the exact external status 422, code
+`tool3_invalid_dataset`, and actionable message. Missing context, busy state,
+and Tool 3 raster/output I/O now also use the generic class. Their existing
+HTTP statuses, codes, safe messages, disk artifacts, URLs, and semaphore
+behavior are unchanged. `artifact_path` continues to use ordinary
+`SatQueryError` because artifact retrieval is an API resource operation rather
+than specialist execution.
+
+### Worker configuration and lifecycle
+
+`Settings` now supports:
+
+* `SATQUERY_MCI_WORKER_URL` (default `http://127.0.0.1:8012`)
+* `SATQUERY_MCI_CONNECT_TIMEOUT_SECONDS` (default `1.0`)
+* `SATQUERY_MCI_ANALYSIS_TIMEOUT_SECONDS` (default `15.0`)
+
+`create_app` constructs one Torch-free `MCIWorkerClient` from those values,
+binds it into a per-app copy of the registry through the existing adapter
+factory, and reuses it for all Tool 2 requests. The client is closed during app
+lifespan shutdown. A client explicitly injected for tests is caller-owned and
+is not closed by the app. The global `TOOL_REGISTRY` is never mutated, avoiding
+cross-app or cross-test contamination. Worker URL, timeouts, HTTP client,
+checkpoint, and device remain outside `ToolContext`.
+
+### Registry, routing, service, and trace
+
+The global registry now contains:
+
+* `single_image_stub_v0`
+* `change_stub_v0`
+* `change_mci_v1`
+* `optical_sar_v1`
+
+The router changes only the selected change implementation from
+`change_stub_v0` to `change_mci_v1`. Task inference, input compatibility,
+acquisition-date ordering, Tool 1, and Tool 3 routing are unchanged. No `/ready`
+request is made by the router or service.
+
+`SatQueryService` accepts a registry mapping and invokes every specialist
+through the same `execute_tool` call. Stub status comes from the registry's
+explicit stub-name set rather than suffix matching. Successful real tools now
+use the neutral message `<tool> completed specialist analysis.` and include
+`tool`, `facts_returned`, and `overlay_type` in the tool trace. Tool 3's existing
+`fusion_rule` trace detail is preserved when that fact exists.
+
+### Question provenance and artifacts
+
+The question continues to influence deterministic routing only. It is absent
+from `ChangeAnalysisRequest`, the fake transport records that absence, and the
+MCI caption continues to declare `question_conditioned=false`. Tool 2 does not
+claim arbitrary VQA behavior.
+
+Successful Tool 2 responses now contain `/artifacts/tool2/<run_id>/...` URLs
+and write private `access.json`. Phase 3B5 deliberately adds no Tool 2 GET
+route: an integration assertion confirms that fetching the produced overlay
+URL still returns 404. Public serving belongs to Phase 3B6.
+
+### Testing
+
+`tests/fake_mci_worker.py` provides a Torch-free `httpx.MockTransport` fixture
+that validates the real main-side HTTP client/protocol path and creates the
+five advertised files under the test Tool 2 output root. The normal main API
+fixture injects this client, so main tests require neither PyTorch, CUDA,
+checkpoint, nor `.venv-mci`.
+
+Activation tests cover the complete backend success path, trusted before/after
+ordering, question exclusion, ToolResult/ResultEnvelope mapping, access
+manifest, safe URLs, the intentional missing public GET route, preflight
+rejection without a worker call, 429/502/503/504 infrastructure responses, and
+an instrumented proof that unavailable worker execution never invokes the
+stub. Separate tests cover error fields/policies, Tool 3 generic-error
+migration, environment configuration, owned/injected client lifecycles, and
+the expanded Torch-free import boundary.
+
+### Problems encountered and exact fixes
+
+* **Symptom:** the first read-only audit batch did not run. **Root cause:** a
+  malformed JavaScript template expression in the tool-output formatter.
+  **Fix:** correct the local formatter and rerun the unchanged audit commands.
+  **Why correct:** no repository command or file mutation occurred in the
+  failed call.
+* **Symptom:** the first successful end-to-end backend run failed its caption
+  assertion after executing Tool 2 correctly. **Root cause:** the new test
+  guessed `new buildings appeared`, while the controlled shared fixture emits
+  `a road was constructed`. **Fix:** align the literal assertion with the
+  fixture. **Why correct:** the protocol result was already correct; no
+  production caption behavior was changed.
+* **Symptom:** the first Settings patch could not find its expected context.
+  **Root cause:** its patch hunk did not match the file's exact multiline
+  formatting. **Fix:** read the narrow current section and reapply against
+  exact lines. **Why correct:** the failed patch changed no file, and the
+  configuration tests then passed.
+* **Symptom:** existing API change-route fixtures were 8x6 and the shared API
+  fixture had no worker injection. **Root cause:** those tests were written
+  while change routing ended at a stub, before exact MCI preflight mattered.
+  **Fix:** make only the change-route fixtures 256x256 and inject the real
+  Torch-free client over a fake HTTP transport. **Why correct:** tests now
+  exercise the production boundary without weakening MCI validation or loading
+  the model.
+
+### Remaining limitations
+
+The Tool 2 browser artifact endpoint is absent, so generated Tool 2 URLs return
+404 by design until **Phase 3B6 only**. Composer-specific Tool 2 prose and the
+frontend are unchanged. No real shared-app checkpoint request was required in
+this phase; the mandatory real end-to-end run remains Phase 3B9. The standalone
+worker, protocol, MCI architecture, checkpoint, and `.venv-mci` were not
+modified.

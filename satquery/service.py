@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from uuid import UUID
 from threading import BoundedSemaphore
+from collections.abc import Mapping
 
 from fastapi import UploadFile
 
@@ -17,17 +18,23 @@ from satquery.contracts import (
     TraceStep,
     UploadResponse,
 )
-from satquery.registry import execute_tool
+from satquery.errors import ToolExecutionError
+from satquery.registry import TOOL_REGISTRY, ToolHandler, execute_tool, is_stub_tool
 from satquery.router import ROUTER_VERSION, route_query, router_trace
 from satquery.storage import AssetStore
 from satquery.tools.context import ToolContext, build_tool_context
-from satquery.tools.optical_sar import ToolInputError
 
 
 class SatQueryService:
-    def __init__(self, store: AssetStore) -> None:
+    def __init__(
+        self,
+        store: AssetStore,
+        *,
+        tool_registry: Mapping[str, ToolHandler] | None = None,
+    ) -> None:
         self.store = store
         self.tool_slots = BoundedSemaphore(1)
+        self.tool_registry = dict(tool_registry or TOOL_REGISTRY)
 
     def tool_context(
         self,
@@ -101,8 +108,16 @@ class SatQueryService:
             else None
         )
         try:
-            tool_result = execute_tool(plan.tool or "", ordered_assets, plan, context)
-        except ToolInputError as exc:
+            tool_result = execute_tool(
+                plan.tool or "",
+                ordered_assets,
+                plan,
+                context,
+                registry=self.tool_registry,
+            )
+        except ToolExecutionError as exc:
+            if not exc.as_rejection:
+                raise
             trace.append(TraceStep(stage="tool", status="rejected", message=exc.message,
                                    details={"code": exc.code}))
             return ResultEnvelope(
@@ -112,13 +127,15 @@ class SatQueryService:
                 warnings=[*asset_warnings, *pack.warnings, *plan.warnings], overlay=Overlay(),
                 receipt=Receipt(why_this_tool=plan.why, rejected=True, reason=exc.message, trace=trace),
             )
-        is_stub = (plan.tool or "").endswith("_stub_v0")
+        is_stub = is_stub_tool(plan.tool or "")
         trace.append(
             TraceStep(
                 stage="tool",
                 status="stub" if is_stub else "ok",
-                message=f"{plan.tool} returned a declared stub result." if is_stub else f"{plan.tool} generated candidate maps.",
-                details={"facts_returned": bool(tool_result.facts),
+                message=f"{plan.tool} returned a declared stub result." if is_stub else f"{plan.tool} completed specialist analysis.",
+                details={"tool": plan.tool or "",
+                         "facts_returned": bool(tool_result.facts),
+                         "overlay_type": tool_result.overlay.type.value,
                          **({"fusion_rule": tool_result.facts["fusion_rule"]} if "fusion_rule" in tool_result.facts else {})},
             )
         )

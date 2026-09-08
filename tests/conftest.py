@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from rasterio.transform import Affine, from_origin
 
 from apps.api.main import Settings, create_app
+from tests.fake_mci_worker import successful_mci_client
 
 
 @pytest.fixture
@@ -19,6 +20,8 @@ def geotiff_bytes(tmp_path: Path) -> Callable[..., bytes]:
     def make(
         *,
         bands: int = 3,
+        width: int = 8,
+        height: int = 6,
         crs: str | None = "EPSG:4326",
         transform: Affine | None = None,
         tags: dict[str, str] | None = None,
@@ -30,8 +33,8 @@ def geotiff_bytes(tmp_path: Path) -> Callable[..., bytes]:
         raster_transform = transform or from_origin(77.0, 29.0, 0.001, 0.001)
         profile = {
             "driver": "GTiff",
-            "width": 8,
-            "height": 6,
+            "width": width,
+            "height": height,
             "count": bands,
             "dtype": "uint8",
             "transform": raster_transform,
@@ -40,7 +43,7 @@ def geotiff_bytes(tmp_path: Path) -> Callable[..., bytes]:
             profile["crs"] = crs
         with rasterio.open(path, "w", **profile) as dataset:
             for index in range(1, bands + 1):
-                dataset.write(np.full((6, 8), index * 20, dtype=np.uint8), index)
+                dataset.write(np.full((height, width), index * 20, dtype=np.uint8), index)
             if tags:
                 dataset.update_tags(**tags)
             if descriptions:
@@ -63,5 +66,12 @@ def settings(tmp_path: Path) -> Settings:
 
 @pytest.fixture
 def client(settings: Settings) -> Iterator[TestClient]:
-    with TestClient(create_app(settings)) as test_client:
-        yield test_client
+    mci_client = successful_mci_client(
+        settings.runtime_dir / "tool2-results",
+        [],
+    )
+    try:
+        with TestClient(create_app(settings, mci_client=mci_client)) as test_client:
+            yield test_client
+    finally:
+        mci_client.close()

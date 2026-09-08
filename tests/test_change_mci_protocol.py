@@ -132,6 +132,9 @@ class ChangeMciProtocolTest(unittest.TestCase):
             )
 
     def test_main_side_client_and_adapter_do_not_import_mci_runtime(self) -> None:
+        import satquery.registry
+        import satquery.router
+        import satquery.service
         import satquery.tools.change_mci
         import satquery.tools.mci_worker_client
 

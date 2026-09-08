@@ -142,7 +142,7 @@ def route_query(assets: list[AssetRecord], question: str, pack: PackCheck) -> Ro
             )
         return RoutePlan(
             task=Task.CHANGE,
-            tool="change_stub_v0",
+            tool="change_mci_v1",
             ordered_asset_ids=[asset.asset_id for asset in ordered],
             parameters={
                 "before_asset_id": str(ordered[0].asset_id),

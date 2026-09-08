@@ -22,9 +22,16 @@ from satquery.contracts import (
     UploadResponse,
 )
 from satquery.errors import SatQueryError
+from satquery.registry import build_tool_registry
 from satquery.router import ROUTER_VERSION
 from satquery.service import SatQueryService
 from satquery.storage import AssetStore
+from satquery.tools.mci_worker_client import (
+    DEFAULT_ANALYSIS_TIMEOUT_SECONDS,
+    DEFAULT_BASE_URL,
+    DEFAULT_CONNECT_TIMEOUT_SECONDS,
+    MCIWorkerClient,
+)
 from satquery.tools.optical_sar import artifact_path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +42,9 @@ class Settings:
     runtime_dir: Path
     max_upload_bytes: int = 100 * 1024 * 1024
     retention_hours: int = 24
+    mci_worker_url: str = DEFAULT_BASE_URL
+    mci_connect_timeout_seconds: float = DEFAULT_CONNECT_TIMEOUT_SECONDS
+    mci_analysis_timeout_seconds: float = DEFAULT_ANALYSIS_TIMEOUT_SECONDS
     cors_origins: tuple[str, ...] = (
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -55,6 +65,19 @@ class Settings:
             * 1024
             * 1024,
             retention_hours=int(os.getenv("SATQUERY_RETENTION_HOURS", "24")),
+            mci_worker_url=os.getenv("SATQUERY_MCI_WORKER_URL", DEFAULT_BASE_URL),
+            mci_connect_timeout_seconds=float(
+                os.getenv(
+                    "SATQUERY_MCI_CONNECT_TIMEOUT_SECONDS",
+                    str(DEFAULT_CONNECT_TIMEOUT_SECONDS),
+                )
+            ),
+            mci_analysis_timeout_seconds=float(
+                os.getenv(
+                    "SATQUERY_MCI_ANALYSIS_TIMEOUT_SECONDS",
+                    str(DEFAULT_ANALYSIS_TIMEOUT_SECONDS),
+                )
+            ),
             cors_origins=(
                 tuple(value.strip() for value in origins.split(",") if value.strip())
                 if origins
@@ -72,19 +95,36 @@ def _error_response(
     return JSONResponse(status_code=status_code, content=body.model_dump(mode="json"))
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    mci_client: MCIWorkerClient | None = None,
+) -> FastAPI:
     active_settings = settings or Settings.from_environment()
     store = AssetStore(
         active_settings.runtime_dir,
         max_upload_bytes=active_settings.max_upload_bytes,
         retention=timedelta(hours=active_settings.retention_hours),
     )
-    service = SatQueryService(store)
+    owns_mci_client = mci_client is None
+    active_mci_client = mci_client or MCIWorkerClient(
+        base_url=active_settings.mci_worker_url,
+        connect_timeout_seconds=active_settings.mci_connect_timeout_seconds,
+        analysis_timeout_seconds=active_settings.mci_analysis_timeout_seconds,
+    )
+    service = SatQueryService(
+        store,
+        tool_registry=build_tool_registry(active_mci_client),
+    )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         store.cleanup_expired()
-        yield
+        try:
+            yield
+        finally:
+            if owns_mci_client:
+                active_mci_client.close()
 
     app = FastAPI(
         title="SatQuery AI API",
@@ -94,6 +134,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = active_settings
     app.state.store = store
     app.state.service = service
+    app.state.mci_client = active_mci_client
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(active_settings.cors_origins),

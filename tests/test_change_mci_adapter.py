@@ -20,10 +20,12 @@ from satquery.contracts import (
     Task,
     ValueProvenance,
 )
+from satquery.errors import ToolExecutionError
 from satquery.storage import AssetStore
-from satquery.tools.change_mci import ChangeMCIAdapterError, build_change_mci_v1
+from satquery.tools.change_mci import build_change_mci_v1
 from satquery.tools.change_mci_protocol import ChangeAnalysisSuccessResponse
 from satquery.tools.context import ToolContext
+from satquery.tools.mci_worker_client import MCIWorkerClientError
 from tests.test_change_mci_client import success_payload
 
 
@@ -56,6 +58,16 @@ class FakeWorkerClient:
         if self.warning is not None:
             payload["warnings"] = [self.warning]
         return ChangeAnalysisSuccessResponse.model_validate(payload)
+
+
+class FailingWorkerClient:
+    def __init__(self, error: MCIWorkerClientError) -> None:
+        self.error = error
+        self.calls = 0
+
+    def analyze(self, _request):
+        self.calls += 1
+        raise self.error
 
 
 class ChangeMCIAdapterTest(unittest.TestCase):
@@ -140,7 +152,7 @@ class ChangeMCIAdapterTest(unittest.TestCase):
             ([self.before, self.after], bad_parameters, self.context),
         ):
             with self.subTest(plan=plan.task):
-                with self.assertRaises(ChangeMCIAdapterError):
+                with self.assertRaises(ToolExecutionError):
                     handler(assets, plan, context)
 
     def test_rejects_incompatible_metadata_missing_artifacts_and_request_mismatch(self) -> None:
@@ -151,12 +163,12 @@ class ChangeMCIAdapterTest(unittest.TestCase):
         ):
             plan = self.plan.model_copy(update={"ordered_asset_ids": [invalid.asset_id, self.after.asset_id], "parameters": {"before_asset_id": str(invalid.asset_id), "after_asset_id": str(self.after.asset_id)}})
             with self.subTest(invalid=invalid.original_name):
-                with self.assertRaises(ChangeMCIAdapterError):
+                with self.assertRaises(ToolExecutionError):
                     self._handler(FakeWorkerClient(self.output_root))([invalid, self.after], plan, self.context)
 
-        with self.assertRaises(ChangeMCIAdapterError):
+        with self.assertRaises(ToolExecutionError):
             self._handler(FakeWorkerClient(self.output_root, mismatched_request_id=True))([self.before, self.after], self.plan, self.context)
-        with self.assertRaises(ChangeMCIAdapterError):
+        with self.assertRaises(ToolExecutionError):
             self._handler(FakeWorkerClient(self.output_root, missing_artifact=True))([self.before, self.after], self.plan, self.context)
 
     def test_preserves_safe_warnings_but_filters_path_like_warning_text(self) -> None:
@@ -164,6 +176,65 @@ class ChangeMCIAdapterTest(unittest.TestCase):
             [self.before, self.after], self.plan, self.context
         )
         self.assertFalse(any("private" in warning.lower() for warning in result.warnings))
+
+    def test_incompatible_image_is_a_user_rejection_before_worker_call(self) -> None:
+        invalid = self._asset("bad-size.tif", width=255)
+        plan = self.plan.model_copy(
+            update={
+                "ordered_asset_ids": [invalid.asset_id, self.after.asset_id],
+                "parameters": {
+                    "before_asset_id": str(invalid.asset_id),
+                    "after_asset_id": str(self.after.asset_id),
+                },
+            }
+        )
+        fake = FailingWorkerClient(
+            MCIWorkerClientError("INFERENCE_FAILED", "private worker detail")
+        )
+
+        with self.assertRaises(ToolExecutionError) as caught:
+            build_change_mci_v1(lambda: fake)([invalid, self.after], plan, self.context)
+
+        self.assertEqual(caught.exception.code, "UNSUPPORTED_IMAGE")
+        self.assertEqual(caught.exception.http_status, 422)
+        self.assertTrue(caught.exception.as_rejection)
+        self.assertFalse(caught.exception.retryable)
+        self.assertEqual(fake.calls, 0)
+
+    def test_worker_failures_map_to_generic_safe_execution_errors(self) -> None:
+        cases = (
+            ("WORKER_BUSY", 429, True, False),
+            ("MODEL_NOT_READY", 503, False, False),
+            ("WORKER_UNAVAILABLE", 503, True, False),
+            ("WORKER_TIMEOUT", 504, True, False),
+            ("INVALID_WORKER_RESPONSE", 502, False, False),
+            ("INFERENCE_FAILED", 502, False, False),
+            ("ARTIFACT_WRITE_FAILED", 502, False, False),
+            ("INPUT_FILE_NOT_FOUND", 502, False, False),
+            ("UNSUPPORTED_IMAGE", 422, False, True),
+            ("CUDA_OOM", 503, False, False),
+        )
+        for code, status, retryable, as_rejection in cases:
+            with self.subTest(code=code):
+                fake = FailingWorkerClient(
+                    MCIWorkerClientError(
+                        code,
+                        r"private C:\Users\Aryaveer\MCI_model.pth traceback",
+                        http_status=500,
+                        retryable=False,
+                    )
+                )
+                with self.assertRaises(ToolExecutionError) as caught:
+                    build_change_mci_v1(lambda: fake)(
+                        [self.before, self.after], self.plan, self.context
+                    )
+                error = caught.exception
+                self.assertEqual(error.code, code)
+                self.assertEqual(error.http_status, status)
+                self.assertEqual(error.retryable, retryable)
+                self.assertEqual(error.as_rejection, as_rejection)
+                self.assertNotIn("Aryaveer", str(error))
+                self.assertNotIn("MCI_model.pth", str(error))
 
 
 if __name__ == "__main__":

@@ -135,13 +135,13 @@ def test_two_optical_files_can_use_the_word_optical_without_false_rejection(
 ) -> None:
     before = upload(
         client,
-        geotiff_bytes(),
+        geotiff_bytes(width=256, height=256),
         modality="optical",
         acquisition_date="2020-01-01",
     ).json()
     after = upload(
         client,
-        geotiff_bytes(),
+        geotiff_bytes(width=256, height=256),
         modality="optical",
         acquisition_date="2021-01-01",
     ).json()
@@ -159,13 +159,13 @@ def test_change_route_orders_assets_by_date(
 ) -> None:
     later = upload(
         client,
-        geotiff_bytes(),
+        geotiff_bytes(width=256, height=256),
         modality="optical",
         acquisition_date="2025-05-06",
     ).json()
     earlier = upload(
         client,
-        geotiff_bytes(),
+        geotiff_bytes(width=256, height=256),
         modality="optical",
         acquisition_date="2020-01-02",
     ).json()

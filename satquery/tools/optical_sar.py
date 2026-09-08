@@ -7,7 +7,7 @@ from uuid import UUID
 import rasterio
 
 from satquery.contracts import AssetRecord, Modality, Overlay, OverlayType, RoutePlan, ToolResult
-from satquery.errors import SatQueryError
+from satquery.errors import SatQueryError, ToolExecutionError
 from .context import ToolContext
 from .tool3 import BandSource, Config, DatasetError, run_pipeline
 from .tool3.artifacts import resolve_artifact, to_web_result
@@ -16,10 +16,15 @@ from .tool3.inputs import identify, read_json, validate_mapping
 logger = logging.getLogger(__name__)
 
 
-class ToolInputError(SatQueryError):
+class ToolInputError(ToolExecutionError):
     """A supported route whose raster bands/values cannot be processed."""
     def __init__(self, message: str):
-        super().__init__(422, "tool3_invalid_dataset", message)
+        super().__init__(
+            422,
+            "tool3_invalid_dataset",
+            message,
+            as_rejection=True,
+        )
 
 
 def _sources(assets: list[AssetRecord], context: ToolContext):
@@ -54,9 +59,18 @@ The existing upload API accepts two stacks. Bands must have role descriptions
 come from GeoTIFF metadata. No positional band order or physical units are guessed.
 """
     if context is None:
-        raise SatQueryError(500, "missing_tool_context", "Tool 3 requires a server execution context.")
+        raise ToolExecutionError(
+            500,
+            "missing_tool_context",
+            "Tool 3 requires a server execution context.",
+        )
     if not context.slots.acquire(blocking=False):
-        raise SatQueryError(429, "tool3_busy", "Tool 3 is processing another scene; retry shortly.")
+        raise ToolExecutionError(
+            429,
+            "tool3_busy",
+            "Tool 3 is processing another scene; retry shortly.",
+            retryable=True,
+        )
     try:
         sources = _sources(assets, context)
         result = run_pipeline(sources, context.output_dir, Config())
@@ -84,7 +98,11 @@ come from GeoTIFF metadata. No positional band order or physical units are guess
         raise ToolInputError("Scene exceeds available memory; crop it before uploading.") from exc
     except (OSError, rasterio.errors.RasterioError) as exc:
         logger.exception("Tool 3 raster/output I/O failed")
-        raise SatQueryError(500, "tool3_io_error", "Tool 3 could not read the scene or save its maps. Check server logs.") from exc
+        raise ToolExecutionError(
+            500,
+            "tool3_io_error",
+            "Tool 3 could not read the scene or save its maps. Check server logs.",
+        ) from exc
     finally:
         context.slots.release()
 
