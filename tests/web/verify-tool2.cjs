@@ -199,5 +199,6 @@ function upload(assetId, date) {
 })().catch(error => { console.error(error); process.exitCode = 1; });
 
 async function expectText(locator, value) {
+  await locator.getByText(value, { exact: false }).first().waitFor({ timeout: 5_000 });
   assert.equal(await locator.getByText(value, { exact: false }).count() > 0, true, `Expected ${value}`);
 }

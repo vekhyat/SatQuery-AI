@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
+import importlib.util
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,20 @@ from rasterio.transform import Affine, from_origin
 
 from apps.api.main import Settings, create_app
 from tests.fake_mci_worker import successful_mci_client
+
+
+# The main SatQuery environment is intentionally Torch-free. These standalone
+# runtime tests are exercised in .venv-mci; keep normal pytest collection from
+# importing the CUDA/model package when torch is not installed.
+if importlib.util.find_spec("torch") is None:
+    collect_ignore = [
+        "test_tool2_change_analysis.py",
+        "test_tool2_change_tool.py",
+        "test_tool2_mci_checkpoint.py",
+        "test_tool2_mci_inference.py",
+        "test_tool2_mci_vendor.py",
+        "test_tool2_run_analysis.py",
+    ]
 
 
 @pytest.fixture
