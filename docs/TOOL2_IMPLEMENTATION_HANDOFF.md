@@ -329,3 +329,143 @@ warm-up benchmark, composer, frontend, or end-to-end shared application path.
 The strict TIFF policy validates format shape and RGB interpretation only; it
 does not yet validate geospatial alignment or transform metadata, which remains
 the upstream validator's responsibility. The next phase is **3B3 only**.
+
+## Phase 3B3 — Torch-free main-side MCI client and inactive adapter
+
+### Goal and scope
+
+Phase 3B3 adds the main process’s two Tool 2 boundary components without
+activating Tool 2. `change_mci_v1` is implemented and directly tested, but it
+is not registered, the router still selects `change_stub_v0`, and the service,
+ToolContext, public artifact endpoint, composer, and frontend are untouched.
+The main SatQuery process remains Torch-free; MCI architecture, CUDA, vendor
+code, and checkpoint loading remain isolated in the worker process.
+
+### Main environment repair
+
+The old main `.venv` was unusable because `pyvenv.cfg` referenced removed
+Python 3.12.8. The project declares `requires-python = >=3.12`; the available
+Python 3.14.7 therefore satisfies the project constraint without changing it.
+Only `.venv` was recreated (never `.venv-mci`) using:
+
+```powershell
+$env:UV_CACHE_DIR = (Resolve-Path '.uv-cache-mci')
+uv venv --clear --python 3.14 .venv
+uv pip install --python .\.venv\Scripts\python.exe -e '.[dev]'
+```
+
+The environment is `C:\Users\Aryaveer\Desktop\SIH26167\.venv`, Python
+3.14.7, with HTTPX 0.28.1, Pydantic 2.13.5, Rasterio 1.5.1, and pytest 9.1.1.
+The first storage-test attempt could not access the sandbox-owned default
+pytest temp directory; later pytest runs use a workspace-local `--basetemp`.
+This is a test sandbox issue, not a project dependency or source defect.
+
+`httpx>=0.28,<1` was moved from the dev extra into runtime dependencies because
+the production synchronous specialist client imports it.
+
+### MCIWorkerClient
+
+`satquery.tools.mci_worker_client.MCIWorkerClient` is a synchronous, normal
+main-environment HTTPX client. It imports no Torch, experiments package,
+MCIInference, ChangeAnalysisTool, or vendor model code. Its public operations
+are `health()`, `ready()`, and `analyze(request)`.
+
+Defaults are loopback `http://127.0.0.1:8012`, 1.0-second connect timeout,
+15.0-second analysis read/write timeout, and a 1 MiB maximum response body.
+The response cap is intentionally much larger than the bounded JSON contract
+while preventing unbounded body parsing. POST analysis has no automatic retry:
+a timeout can leave one valid worker run in progress, so retrying could create
+duplicate runs.
+
+The client reads responses incrementally up to the byte cap, parses JSON only
+after that limit is satisfied, and validates every success through the shared
+Pydantic protocol. It also checks that response `request_id` equals the sent
+UUID. Transport, timeout, malformed JSON/schema/version, oversized body, and
+correlation failures become safe `MCIWorkerClientError` values. Validated worker
+errors preserve only their safe code/status/retryability; raw HTTPX exceptions
+and raw bodies are not exposed.
+
+### change_mci_v1 adapter
+
+`satquery.tools.change_mci.change_mci_v1` has the normal specialist handler
+signature. `build_change_mci_v1(client_factory)` is a small factory used only
+to inject a fake client in tests; it avoids a hidden hard-coded network global
+without changing ToolContext or registry signatures.
+
+The adapter requires non-null context, `Task.CHANGE`, exactly two distinct plan
+asset IDs, both IDs in the supplied AssetRecords, and consistent optional
+`before_asset_id`/`after_asset_id` parameters. `plan.ordered_asset_ids` is the
+only temporal authority; filenames and dates are never re-sorted.
+
+Input source paths come exclusively from `context.store.source_path(asset)`.
+The adapter refuses non-optical input, non-256×256 assets, non-three-band
+assets, non-uint8 dtypes, and mismatched CRS/transform/resolution. It does not
+resize, tile, convert, or choose bands. The worker remains the final TIFF parser
+and format gate.
+
+Geospatial metadata is emitted only when Rasterio can defensibly establish a
+projected CRS with metre linear units and finite positive stored resolution. In
+that case the worker gets `validated`, CRS, projected status, metre units, and
+pixel width/height; otherwise it gets only `{"validated": false}`. The adapter
+does not infer units from arbitrary CRS text or fabricate coordinates.
+
+The exact worker request is:
+
+```json
+{
+  "contract_version": "1.0",
+  "request_id": "generated UUID",
+  "before_path": "trusted AssetStore path only",
+  "after_path": "trusted AssetStore path only",
+  "geo_metadata": {"validated": true | false}
+}
+```
+
+No question, checkpoint, device, output directory, run ID, or model parameter
+is sent.
+
+The adapter verifies all advertised artifacts beneath
+`context.output_dir/run_id`, then atomically writes private `access.json` with
+only source asset IDs, run ID, and `change_mci_v1`. It maps worker filenames to
+root-relative URLs such as `/artifacts/tool2/<run_id>/overlay.png`; no
+filesystem path is placed in ToolResult. The endpoint that will serve those
+URLs does not exist yet.
+
+ToolResult facts contain summary/caption, statistics, both `per_class` and
+application-facing `classes`, bounded components, optional physical area and
+coordinates, confidence provenance, model/timing, and public artifact URLs.
+Overlay type is `change_mask`. Numeric confidence remains `0.0` strictly as a
+compatibility sentinel; `confidence_status: not_measured` and provenance explain
+that it is not a measured 0% confidence. Sanitized worker warnings are retained
+except path-like warning text, and one clear calibration-sentinel warning is
+added if absent.
+
+### Tests and defects found
+
+New main-side tests cover validated requests, safe 429/503/transport/timeout
+errors, malformed JSON/schema/version, response-size cap, request-ID mismatch,
+and proof of one POST attempt. Adapter tests cover plan ordering, trusted source
+paths, metadata preflight, geo metadata, artifacts/access manifest, public
+URLs, confidence mapping, warnings, missing artifacts, and mismatch rejection.
+The import test imports protocol/client/adapter in the main environment and
+asserts neither `torch` nor `experiments.tool2_mci` loaded.
+
+Two defects were discovered during test-driven implementation:
+
+* **Symptom:** an oversized-response error caused `FrozenInstanceError` while
+  unwinding HTTPX/unittest contexts. **Root cause:** `MCIWorkerClientError` was
+  a frozen dataclass, while Python must attach traceback attributes to raised
+  exceptions. **Fix:** make the structured exception mutable. **Why correct:**
+  it preserves safe fields while restoring normal exception semantics.
+* **Symptom:** a fake path-like warning reached ToolResult. **Root cause:** the
+  worker protocol validates warning shape, not embedded filesystem text.
+  **Fix:** adapter filters Windows/absolute Unix path-like warning strings.
+  **Why correct:** worker warnings remain useful while final main results do not
+  expose paths.
+
+### Remaining limitations
+
+This adapter is intentionally inactive. No router/registry/service/client
+wiring, generic specialist error model, ToolContext expansion, artifact API,
+composer, frontend, or broad GeoTIFF preprocessing was implemented. The next
+phase is **3B4 only**.

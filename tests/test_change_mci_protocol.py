@@ -130,3 +130,10 @@ class ChangeMciProtocolTest(unittest.TestCase):
             ChangeAnalysisErrorResponse(
                 error={"code": "PRIVATE_EXCEPTION", "message": "do not expose", "retryable": False}
             )
+
+    def test_main_side_client_and_adapter_do_not_import_mci_runtime(self) -> None:
+        import satquery.tools.change_mci
+        import satquery.tools.mci_worker_client
+
+        forbidden = [name for name in sys.modules if name == "torch" or name.startswith("experiments.tool2_mci")]
+        self.assertEqual(forbidden, [])
