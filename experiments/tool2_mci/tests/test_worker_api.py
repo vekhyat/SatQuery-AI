@@ -167,10 +167,10 @@ class WorkerApiTest(unittest.TestCase):
         self.input_root = self.root / "inputs"
         self.output_root = self.root / "outputs"
         self.input_root.mkdir()
-        self.before = self.input_root / "case-before.png"
-        self.after = self.input_root / "case-after.png"
-        Image.new("RGB", (256, 256), color=(10, 20, 30)).save(self.before)
-        Image.new("RGB", (256, 256), color=(40, 50, 60)).save(self.after)
+        self.before = self.input_root / "case-before.tif"
+        self.after = self.input_root / "case-after.tif"
+        Image.new("RGB", (256, 256), color=(10, 20, 30)).save(self.before, format="TIFF")
+        Image.new("RGB", (256, 256), color=(40, 50, 60)).save(self.after, format="TIFF")
         self.config = WorkerConfig(
             input_root=self.input_root,
             output_root=self.output_root,

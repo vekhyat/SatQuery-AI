@@ -174,3 +174,158 @@ loopback. No commit, merge, push, or remote branch modification was performed.
 
 The next implementation phase is **3B2 only**. It must build on this boundary
 without beginning main-app integration in Phase 3B1.
+
+## Phase 3B2 — adversarial hardening and worker verification
+
+### Goal and scope
+
+Phase 3B2 hardened the already-implemented worker boundary. It added no main
+SatQuery client, adapter, registry/router/service change, artifact endpoint,
+composer, or frontend work. The only production behavior tightened is the
+worker's input and public-artifact policy.
+
+Before the phase, the complete Phase 3B1 file set was verified, committed
+locally as `f3400a3 tool2: add isolated MCI worker protocol and API`, and
+anchored at `backup/tool2-after-3b1`. Nothing was pushed.
+
+### What changed
+
+* The shared Pydantic protocol now rejects NaN/infinite values, rejects a
+  changed-pixel count greater than valid pixels, and requires changed plus
+  unchanged pixels to equal valid pixels. These are small transport invariants,
+  not an attempt to duplicate the standalone analysis engine.
+* Public artifact fields now contain only `semantic_mask_raw.png`,
+  `semantic_mask_rgb.png`, `change_binary_mask.png`, `overlay.png`, and
+  `components.json`. The worker still validates all internally created evidence
+  under its run directory, including `before.png`, `after.png`, and
+  `result.json`, but does not advertise those internal files.
+* The production worker now accepts only readable TIFF files with `.tif` or
+  `.tiff` suffixes that are exactly 256×256, RGB, three-channel, and explicitly
+  report 8 bits per sample. It rejects PNG, dimensions other than 256×256,
+  grayscale, RGBA/multiband, uint16, corrupt TIFFs, and extension/content
+  mismatches. It does not resize, stretch, guess band ordering, or convert
+  uint16 imagery.
+* `ImagePolicy.INTERNAL_LEVIR_PNG_REGRESSION` is an explicitly test-only path
+  used only by `experiments.tool2_mci.tests.checkpoint_worker_server`. The
+  production CLI and ordinary `create_app` default to `PRODUCTION_TIFF`.
+  This permits the frozen LEVIR PNG checkpoint regression without weakening the
+  future shared-app GeoTIFF boundary.
+* Loopback process tests use a separate fake-worker process and an ephemeral
+  port. They confirm `127.0.0.1` behavior, no CORS header, health/readiness,
+  ready analysis, and live-but-not-ready STARTING/FAILED states. Test teardown
+  terminates every spawned worker process.
+
+### Security and correctness verification
+
+Protocol adversarial tests now cover missing/wrong contract version, malformed
+UUID, missing/relative/empty paths, non-object geospatial metadata, strict
+unknown fields, malformed success and error payloads, invalid run IDs, absolute
+or traversing artifact fields, path separators, negative counts, count
+inconsistency, changed fractions/percentages out of range, and NaN/Infinity.
+
+Path tests use temporary Windows roots and canonical `Path.resolve` plus
+`relative_to`, never string prefixes. They cover valid containment, sibling
+roots, nested traversal, `uploads` versus `uploads-evil` prefix collision,
+directories, missing files, and artifact escape. The symlink escape test is
+present but skipped on this machine with documented Windows error 1314 because
+the process lacks the SeCreateSymbolicLink privilege; it is not reported as a
+pass. Junction/reparse-point creation was not available under the same policy.
+
+Run IDs are worker-created lowercase 32-hex UUID values. Tests confirm separate
+requests receive distinct IDs, users cannot submit a client run-ID field due to
+strict request validation, and run directories remain below output_root.
+
+The semaphore remains capacity one. A blocking fake proves the second request
+waits only the configured short interval and returns `429 WORKER_BUSY` with
+`retryable: true`; the first then completes and a third request succeeds. A
+fake exception also proves the `finally` release allows the next request to
+succeed. Sensitive failure text containing a local user path, checkpoint name,
+CUDA text, traceback text, and a synthetic secret was absent from returned JSON.
+Server logs retain diagnostic traces by design.
+
+The worker response preserves component counts and largest-component statistics
+but maps at most 10 component items per group. The full component list remains
+in internal `components.json`; it is not expanded into the HTTP response.
+
+### Real verification
+
+The actual production CLI was launched hidden on an ephemeral loopback port
+using `.venv-mci`, the official checkpoint, `cuda:0`, and the normal TIFF
+policy. It returned `/health` with `satquery-mci-worker`, then `/ready` with
+`Change-Agent MCI`, `cuda:0`, vocabulary 468, and SHA-256
+`34c6926342c40fdd6d50b43d50257cb46cb6b61763448de9ee551828a64b3eb9`. The
+process was stopped in the verification command.
+
+One opt-in real worker HTTP analysis was run through the test-only internal
+LEVIR PNG policy for `test_000004`. It passed in 10.002 seconds and exactly
+matched the frozen result:
+
+* caption: `the vegetation has been removed and a road with villas built along appears`
+* class 0: 45598; road class 1: 7382; building class 2: 12556
+* changed pixels: 19938
+
+The pre-existing direct opt-in frozen checkpoint regression was also run and
+passed in 9.476 seconds. It emitted two upstream deprecation warnings from
+timm/Torch; no model, vendor, or checkpoint code was changed.
+
+### Dependency reproducibility
+
+`requirements/tool2-worker.txt` remains the actual minimal worker manifest:
+Python 3.11, the verified `torch==2.0.1+cu118` and
+`torchvision==0.15.2+cu118` stack, NumPy, Pillow, timm, einops, FastAPI,
+Pydantic, Uvicorn, and HTTPX. The file includes the PyTorch cu118 index. A
+reproducible command that preserves the existing isolated interpreter is:
+
+```powershell
+$env:UV_CACHE_DIR = (Resolve-Path '.uv-cache-mci')
+uv pip install --python .\.venv-mci\Scripts\python.exe -r requirements\tool2-worker.txt
+```
+
+The installed worker environment was verified as Python 3.11.15, Torch
+2.0.1+cu118, torchvision 0.15.2+cu118, NumPy 1.25.2, Pillow 10.0.1, timm
+0.9.12, einops 0.7.0, FastAPI 0.141.1, Pydantic 2.13.5, Uvicorn 0.52.4, and
+HTTPX 0.28.1. The stale main `.venv`, which points to a removed Python 3.12,
+was deliberately not repaired or recreated.
+
+### Files changed in Phase 3B2
+
+* `satquery/tools/change_mci_protocol.py`
+* `experiments/tool2_mci/worker_api.py`
+* `experiments/tool2_mci/tests/test_worker_api.py`
+* `tests/test_change_mci_protocol.py`
+* `experiments/tool2_mci/tests/test_worker_hardening.py` (new)
+* `experiments/tool2_mci/tests/fake_worker_server.py` (new)
+* `experiments/tool2_mci/tests/test_worker_process.py` (new)
+* `experiments/tool2_mci/tests/checkpoint_worker_server.py` (new)
+* `experiments/tool2_mci/tests/test_worker_checkpoint_http.py` (new)
+* this handoff document
+
+### Problems encountered and exact fixes
+
+* **Symptom:** production worker accepted a valid 256×256 PNG and advertised
+  internal result/input copies. **Root cause:** the 3B1 image check was generic
+  Pillow RGB/size validation and its artifact model represented every internal
+  evidence file. **Fix:** strict TIFF/tag validation plus a separate public
+  five-file allowlist. **Why correct:** it matches the shared-app GeoTIFF
+  contract while preserving standalone PNG and internal evidence behavior.
+* **Symptom:** protocol permitted changed pixels above valid pixels. **Root
+  cause:** field ranges did not express cross-field consistency. **Fix:** a
+  small Pydantic after-validator. **Why correct:** it rejects impossible output
+  without taking responsibility for full semantic analysis validation.
+* **Symptom:** real-process test initially had no server module. **Root cause:**
+  the test was intentionally written before its test-only harness. **Fix:**
+  added a deterministic fake-worker Uvicorn module. **Why correct:** it tests
+  socket/process behavior without loading CUDA or the checkpoint.
+* **Symptom:** a generated footer typo was caught before harness execution.
+  **Root cause:** a malformed test-helper line. **Fix:** corrected that one
+  line before the green test run. **Why correct:** it changed no production
+  boundary.
+
+### Remaining limitations
+
+There is still no main-worker client, Tool 2 adapter, routing, registry,
+service integration, public artifact endpoint, GeoTIFF tiling, CORS/auth layer,
+warm-up benchmark, composer, frontend, or end-to-end shared application path.
+The strict TIFF policy validates format shape and RGB interpretation only; it
+does not yet validate geospatial alignment or transform metadata, which remains
+the upstream validator's responsibility. The next phase is **3B3 only**.

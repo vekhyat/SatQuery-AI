@@ -39,7 +39,7 @@ from satquery.tools.change_mci_protocol import (
 
 
 LOGGER = logging.getLogger(__name__)
-ARTIFACT_FILENAMES = {
+INTERNAL_ARTIFACT_FILENAMES = {
     "before": "before.png",
     "after": "after.png",
     "semantic_mask": "semantic_mask_raw.png",
@@ -48,6 +48,16 @@ ARTIFACT_FILENAMES = {
     "overlay": "overlay.png",
     "components": "components.json",
     "result": "result.json",
+}
+PUBLIC_ARTIFACT_FILENAMES = {
+    key: INTERNAL_ARTIFACT_FILENAMES[key]
+    for key in (
+        "semantic_mask",
+        "semantic_mask_rgb",
+        "binary_mask",
+        "overlay",
+        "components",
+    )
 }
 
 
@@ -70,6 +80,13 @@ class WorkerPhase(StrEnum):
     STARTING = "starting"
     READY = "ready"
     FAILED = "failed"
+
+
+class ImagePolicy(StrEnum):
+    """Production GeoTIFF policy plus a test-only frozen LEVIR regression mode."""
+
+    PRODUCTION_TIFF = "production_tiff"
+    INTERNAL_LEVIR_PNG_REGRESSION = "internal_leviR_png_regression"
 
 
 class UnsupportedImageError(ValueError):
@@ -185,10 +202,25 @@ def _contained_existing_input(path_value: str, input_root: Path) -> Path:
     return resolved
 
 
-def _validate_mci_image_pair(before: Path, after: Path) -> None:
-    """Reject bad inputs before a real model runtime receives them."""
+def _validate_mci_image_pair(
+    before: Path,
+    after: Path,
+    *,
+    image_policy: ImagePolicy,
+) -> None:
+    """Enforce the production TIFF boundary before a model runtime receives input."""
     try:
         with Image.open(before) as before_image, Image.open(after) as after_image:
+            images = (before_image, after_image)
+            if image_policy is ImagePolicy.PRODUCTION_TIFF:
+                if any(path.suffix.lower() not in {".tif", ".tiff"} for path in (before, after)):
+                    raise UnsupportedImageError
+                if any(image.format != "TIFF" for image in images):
+                    raise UnsupportedImageError
+                for image in images:
+                    bits_per_sample = image.tag_v2.get(258) if hasattr(image, "tag_v2") else None
+                    if tuple(bits_per_sample or ()) != (8, 8, 8):
+                        raise UnsupportedImageError
             if before_image.mode != "RGB" or after_image.mode != "RGB":
                 raise UnsupportedImageError
             if before_image.size != (256, 256) or after_image.size != (256, 256):
@@ -231,11 +263,12 @@ def _sanitize_artifacts(evidence: dict[str, str], output_root: Path) -> tuple[st
         if len(run_id) != 32 or any(character not in "0123456789abcdef" for character in run_id):
             raise ValueError("worker run ID is invalid")
         sanitized: dict[str, str] = {}
-        for name, expected_filename in ARTIFACT_FILENAMES.items():
+        for name, expected_filename in INTERNAL_ARTIFACT_FILENAMES.items():
             artifact = Path(evidence[name]).resolve(strict=True)
             if artifact.parent != run_directory or artifact.name != expected_filename:
                 raise ValueError("artifact is outside the worker-owned run directory")
-            sanitized[name] = artifact.name
+            if name in PUBLIC_ARTIFACT_FILENAMES:
+                sanitized[name] = artifact.name
         return run_id, ArtifactFilenames(**sanitized)
     except (KeyError, FileNotFoundError, ValueError) as error:
         raise ValueError("invalid artifact boundary") from error
@@ -301,7 +334,11 @@ def _success_response(result: Any, request_id: Any, output_root: Path) -> Change
     )
 
 
-def create_app(state: WorkerState) -> FastAPI:
+def create_app(
+    state: WorkerState,
+    *,
+    image_policy: ImagePolicy = ImagePolicy.PRODUCTION_TIFF,
+) -> FastAPI:
     """Create an application without initializing MCI; tests inject a fake analyzer."""
     app = FastAPI(title="SatQuery MCI Worker", docs_url=None, redoc_url=None)
 
@@ -332,7 +369,7 @@ def create_app(state: WorkerState) -> FastAPI:
         except ValueError:
             return _error_response(422, "INVALID_REQUEST", "Input paths must be within the configured input root.", request_id=request.request_id)
         try:
-            _validate_mci_image_pair(before, after)
+            _validate_mci_image_pair(before, after, image_policy=image_policy)
         except UnsupportedImageError:
             return _error_response(
                 422,

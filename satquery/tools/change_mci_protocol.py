@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 CONTRACT_VERSION = "1.0"
@@ -16,7 +16,7 @@ WORKER_SERVICE_NAME = "satquery-mci-worker"
 class ProtocolModel(BaseModel):
     """Reject accidental fields so worker and future client drift is visible."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
 class WorkerError(ProtocolModel):
@@ -91,6 +91,16 @@ class StatisticsResponse(ProtocolModel):
     changed_percent: float = Field(ge=0, le=100)
     per_class: dict[str, ClassStatisticsResponse]
 
+    @model_validator(mode="after")
+    def counts_must_describe_the_valid_pixels(self) -> "StatisticsResponse":
+        if self.valid_pixels > self.total_pixels:
+            raise ValueError("valid_pixels cannot exceed total_pixels")
+        if self.changed_pixels > self.valid_pixels:
+            raise ValueError("changed_pixels cannot exceed valid_pixels")
+        if self.unchanged_pixels + self.changed_pixels != self.valid_pixels:
+            raise ValueError("changed and unchanged pixels must equal valid_pixels")
+        return self
+
 
 class ComponentItemResponse(ProtocolModel):
     component_id: int = Field(ge=1)
@@ -131,19 +141,22 @@ class ConfidenceResponse(ProtocolModel):
 
 
 class ArtifactFilenames(ProtocolModel):
-    before: str
-    after: str
     semantic_mask: str
     semantic_mask_rgb: str
     binary_mask: str
     overlay: str
     components: str
-    result: str
 
     @field_validator("*")
     @classmethod
     def filenames_must_not_contain_paths(cls, value: str) -> str:
-        if not value or Path(value).name != value or value in {".", ".."}:
+        if (
+            not value
+            or Path(value).name != value
+            or value in {".", ".."}
+            or "/" in value
+            or "\\" in value
+        ):
             raise ValueError("artifact fields must be filenames only")
         return value
 
