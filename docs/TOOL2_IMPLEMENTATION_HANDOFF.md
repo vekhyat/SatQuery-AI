@@ -1077,3 +1077,242 @@ The UI is backed by the existing secure local artifact service; it does not add
 multi-user authorization, a frontend object-count interpretation, a VQA layer,
 or any MCI inference behavior. The full real-checkpoint shared-application CUDA
 demonstration remains Phase 3B9.
+
+## Phase 3B9 — final real CUDA shared-application verification
+
+### Verified live architecture
+
+The final opt-in harness exercised the real deployed boundaries in sequence:
+
+```text
+Browser
+  -> SatQuery React frontend
+  -> mounted main API (/api)
+  -> AssetStore + checker_v1
+  -> deterministic router_v1
+  -> change_mci_v1
+  -> Torch-free MCIWorkerClient
+  -> localhost HTTP (127.0.0.1:8012)
+  -> production MCI worker
+  -> MCIInference + official checkpoint
+  -> ChangeAnalysisTool
+  -> worker-owned artifacts/result.json
+  -> ToolResult
+  -> deterministic composer
+  -> ResultEnvelope
+  -> secure main artifact API
+  -> Tool2ChangeView
+```
+
+The browser never received or requested the worker URL. It uploaded and queried
+only through the mounted SatQuery API and fetched evidence through
+`/api/artifacts/tool2/...`. The main Python 3.14.7 process remained Torch-free;
+only the Python 3.11.15 worker loaded PyTorch 2.0.1+cu118 and CUDA 11.8.
+
+### Opt-in harness and fixture honesty
+
+`tests/tool2_e2e/test_real_e2e.py` is disabled unless
+`RUN_TOOL2_REAL_E2E=1`. It locates the ignored official checkpoint and
+LEVIR-MCI data, creates ignored temporary TIFF wrappers, starts the production
+worker and combined web/API processes, performs positive and no-change API
+queries, fetches public evidence, invokes the real browser verifier, and always
+terminates both child processes and removes its temporary directory.
+
+The wrappers are 256×256, three-band, uint8 TIFFs. RGB arrays are written
+without resize, stretch, normalization, tiling, band selection, or value
+conversion. Decoded TIFF arrays are compared byte-for-byte with their source
+PNG arrays. The pixel-byte SHA-256 pairs were identical:
+
+* `test_000004` before:
+  `2611bbac502e30de959df95dd2b6225a4dc9f06dcf6386719305220644e56eb8`
+* `test_000004` after:
+  `6b48d5018ab98242a1007eb531add34ba0cf7c2c9033733aee5b3d7d97f568ad`
+* `test_000005` before:
+  `951a6972b34f977acb34c2938785d6874480d2f77831527780b0a75379a67cda`
+* `test_000005` after:
+  `f1f6ea599d0857d9a9dfd16027c5dfab394f8e45be4e50083367ab14b1c9cd42`
+
+The checker requires a CRS and non-identity transform, while LEVIR-MCI carries
+no defensible geography. The wrapper therefore declares an explicitly
+synthetic test-only EPSG:4326 grid. Because it is geographic rather than a
+validated projected metric grid, `change_mci_v1` sends geospatial metadata as
+unvalidated and both physical-area facts remain null. No hectare or location
+claim is produced.
+
+### Real worker, checkpoint, device, and timings
+
+The worker used the production `experiments.tool2_mci.worker_cli`, bound only to
+`127.0.0.1:8012`, with the API upload directory as its input root and the
+task-specific `tool2-results` directory as its output root. `/ready` reported:
+
+* contract `1.0`
+* model `Change-Agent MCI`
+* device `cuda:0`
+* vocabulary size `468`
+* checkpoint SHA-256
+  `34c6926342c40fdd6d50b43d50257cb46cb6b61763448de9ee551828a64b3eb9`
+
+Measured worker process start to ready was `7.8764 s`. With the worker already
+ready, the positive main-API query took `0.9473 s`, including model inference
+of `0.6306 s`. The no-change API query took `0.1844 s`, including inference of
+`0.0763 s`. These are local single-run observations, not performance promises.
+They are well below the frontend's 30-second query timeout.
+
+`nvidia-smi` reported 0 MiB used before worker start, 579 MiB once ready, and
+793 MiB after both positive and no-change requests. Memory remained 793 MiB
+after the second request, with 5,209 MiB free; this shows stable reuse for the
+tested sequence rather than runaway allocation. One worker PID served two API
+analyses plus both browser analyses, `/ready` remained unchanged, and the
+checkpoint initialization occurred once before the server became reachable.
+
+### Frozen positive and no-change results
+
+The real uploaded `test_000004` wrappers routed to exactly
+`checker_v1`, `router_v1`, and `change_mci_v1`; the receipt was not rejected,
+the tool trace was `ok`, and no stub fallback occurred. The exact result was:
+
+* caption: `the vegetation has been removed and a road with villas built along appears`
+* unchanged/background: `45,598`
+* road change: `7,382`
+* building change: `12,556`
+* changed: `19,938` / `30.4229736328125%`
+* answer: `The vegetation has been removed and a road with villas built along appears. Changed pixels: 19,938 (30.42% of valid pixels). Road change: 11.26% of valid pixels; building change: 19.16% of valid pixels.`
+
+The public raw-mask PNG SHA-256 was exactly
+`b6e9c476be46ecfbdfe074c50c9604fd78d2c528e4fa410c3d99f3ef568953ce`.
+
+The real uploaded `test_000005` wrappers used the same full path and returned:
+
+* caption: `the scene is the same as before`
+* unchanged/background: `65,536`
+* road change: `0`
+* building change: `0`
+* changed: `0` / `0%`
+* answer: `The scene is the same as before. Changed pixels: 0 (0.00% of valid pixels).`
+
+The real browser rendered “No detected change” and suppressed road/building
+zero cards for that actual backend result.
+
+### Real artifacts and security
+
+All evidence was fetched through the main public endpoint, not from disk. For
+the positive run, results were:
+
+| Evidence | HTTP | Content-Type | Bytes | Dimensions |
+|---|---:|---|---:|---|
+| `overlay.png` | 200 | `image/png` | 138,900 | 256×256 |
+| `semantic_mask_rgb.png` | 200 | `image/png` | 2,982 | 256×256 |
+| `semantic_mask_raw.png` | 200 | `image/png` | 2,368 | 256×256 |
+| `change_binary_mask.png` | 200 | `image/png` | 2,299 | 256×256 |
+| `components.json` | 200 | `application/json` | 13,303 | valid JSON |
+
+Every public response carried `Cache-Control: no-store` and
+`X-Content-Type-Options: nosniff`. Real `result.json` and `access.json` requests
+both returned safe 404 responses. The no-change run independently returned 200
+for the same five public artifact types and 404 for both private records.
+
+### Real frontend result
+
+`tests/web/verify-tool2-real.cjs` used the built React application with no
+network interception or fake result. It uploaded the TIFFs, queried the mounted
+main API, selected Compare, Overlay, and Semantic mask, and verified the real
+caption, 19,938 / 30.42% statistics, semantic legend, secure download URLs,
+deterministic answer, and `Confidence: not measured`. Browser-originated
+overlay and RGB-mask requests returned 200. Its captured network list contained
+no request to port 8012, checkpoint path, or raw worker endpoint and no page
+errors.
+
+### Integration problems and fixes
+
+No production integration defect was found and no production model, worker,
+backend, or frontend file required a 3B9 fix. Three harness issues were found:
+
+* **Symptom:** the first run stopped after `/ready`. **Layer:** new E2E harness.
+  **Root cause:** its expected dictionary omitted the protocol's existing
+  `contract_version`. **Why earlier tests missed it:** the new assertion had not
+  existed. **Fix:** assert `contract_version: 1.0` explicitly. **Regression:**
+  the opt-in harness now validates the complete readiness payload.
+* **Symptom:** the next run reported a raw-mask hash mismatch although the
+  displayed strings were otherwise identical. **Layer:** new E2E harness.
+  **Root cause:** the expected literal had one extra `e` while transcribing the
+  supplied SHA. **Why earlier tests missed it:** existing checkpoint tests use
+  decoded array equality rather than this public-file hash literal. **Fix:**
+  correct the literal to the supplied hash. **Regression:** the public artifact
+  hash assertion now passes exactly.
+* **Symptom:** invoking pytest inside `.venv-mci` failed with “No module named
+  pytest”. **Layer:** verification command only. **Root cause:** the intentionally
+  minimal worker environment contains `unittest` tests but not pytest. **Why
+  earlier tests missed it:** prior phases used native unittest invocation.
+  **Fix:** run MCI suites with `python -m unittest`; no dependency was added.
+  **Regression:** all native MCI suites and both opt-in checkpoint tests passed.
+
+### What is now implemented
+
+The current SIH Tool 2 scope is complete: exact compatible TIFF upload,
+validation and temporal ordering, deterministic routing, active
+`change_mci_v1`, Torch-free main client, loopback worker isolation, official
+CUDA checkpoint inference, semantic caption/mask/statistics, deterministic
+composition, private provenance manifests, secure public artifacts, and the
+dedicated browser evidence view. Normal tests remain checkpoint- and CUDA-free;
+all real verification is explicitly opt-in.
+
+### What is not implemented
+
+The completed scope intentionally excludes arbitrary-size imagery, tiling or
+mosaicking, automatic resampling, arbitrary multiband-to-RGB selection, uint16
+normalization, a general satellite preprocessing pipeline, question-conditioned
+VQA, LLM interpretation, calibrated confidence, object-instance counting,
+remote authenticated workers, multi-user authorization, and training or
+fine-tuning. These are explicit non-goals, not claims made by the current tool.
+
+### Final current-scope acceptance
+
+All mandatory current-scope checks passed with direct evidence:
+
+* official checkpoint loaded and `/ready` reported real CUDA
+* faithful 256×256 RGB uint8 TIFF wrappers uploaded through the main API
+* checker accepted both pairs and router selected `change_mci_v1`
+* no stub fallback and main imports remained Torch-free
+* positive caption, all three class counts, changed count/percentage, and raw
+  mask SHA matched the frozen baseline exactly
+* all five public artifacts returned 200 with their expected type, dimensions,
+  and security headers; both private artifacts returned 404
+* deterministic positive and no-change composer text matched exactly
+* `confidence=0.0` remained a sentinel and the UI displayed “not measured”
+* real Tool2ChangeView compare, overlay, mask, caption, statistics, legend,
+  downloads, receipt, answer, and no-change behavior were browser-exercised
+* Tool 3, Tool 1/rejection fallback, normal checkpoint-free suites, opt-in
+  checkpoint suites, and the production frontend build passed
+* worker, web/API, browser, and temporary fixture processes/data were cleaned;
+  ports 8012 and 5173 were free and GPU memory returned to 0 MiB afterward
+
+Verification counts were: 189 passed / 2 expected skips / 87 subtests in the
+main suite; 7 MCI inference/vendor tests; 20 worker tests with 2 expected skips
+in the non-opt-in run; 1 standalone checkpoint test; 1 real worker HTTP
+checkpoint test; 1 real shared-app/browser E2E test; and both Tool 2 and Tool 3
+browser scripts. The Vite/TypeScript production build completed successfully.
+
+### Reproducible local startup
+
+From the repository root, start the model worker in one PowerShell window:
+
+```powershell
+.\.venv-mci\Scripts\python.exe -m experiments.tool2_mci.worker_cli `
+  --host 127.0.0.1 --port 8012 `
+  --checkpoint .\MCI_model.pth `
+  --input-root .\runtime\uploads `
+  --output-root .\runtime\uploads\tool2-results `
+  --device cuda:0
+```
+
+Verify readiness with `Invoke-RestMethod http://127.0.0.1:8012/ready`. Build and
+start the combined frontend/main API in another PowerShell window:
+
+```powershell
+$env:SATQUERY_MCI_WORKER_URL = 'http://127.0.0.1:8012'
+npm --prefix apps/web run build
+.\.venv\Scripts\python.exe apps\web\server.py --port 5173
+```
+
+Open `http://127.0.0.1:5173`. The main API is mounted under `/api`; the browser
+must never be configured with or sent directly to the worker URL.
