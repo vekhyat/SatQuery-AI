@@ -1,0 +1,15 @@
+# SatQuery Tool 2 MCI worker — Python 3.11 only.
+# The PyTorch wheels are intentionally pinned to the frozen Phase 1 runtime.
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.0.1+cu118
+torchvision==0.15.2+cu118
+numpy==1.25.2
+Pillow==10.0.1
+timm==0.9.12
+einops==0.7.0
+
+# Minimal local-only HTTP worker surface and focused test client.
+fastapi>=0.141,<0.142
+pydantic>=2.13,<3
+uvicorn[standard]>=0.52,<0.53
+httpx>=0.28,<1
