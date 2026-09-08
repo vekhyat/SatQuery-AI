@@ -27,3 +27,11 @@ TEAM_LEADER_BRIEF.md
 /Change-Agent-main/
 /LEVIR-MCI-dataset/
 /outputs/
+demo/packs/C/generated/
+build/
+dist/
+*.whl
+tests/web/fixtures/
+tests/web/*.png
+tests/web/*.json
+tests/web/*.log

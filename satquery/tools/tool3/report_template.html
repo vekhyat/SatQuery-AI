@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tool 3 · Optical + SAR</title><style>
+:root{color-scheme:dark;--bg:#0c1721;--panel:#142532;--line:#2b414f;--muted:#aec0ca;--ink:#edf6fa;--accent:#69e0c3}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,sans-serif}
+main{max-width:1200px;margin:auto;padding:36px 24px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+h1{font-size:34px;letter-spacing:-1px;margin:4px 0}h2{font-size:20px;margin-top:0}.eyebrow{color:var(--accent);font-size:12px;letter-spacing:2px;text-transform:uppercase}
+p{margin:8px 0 18px}.muted{color:var(--muted)}.badge{background:#294236;color:#b0f5d3;border:1px solid #476955;border-radius:8px;padding:7px 12px;white-space:nowrap}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-top:22px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}.stat{padding:16px 20px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.stat strong{display:block;font-size:27px}.stat span{color:var(--muted);font-size:13px}
+.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:16px}button,a.download{font:inherit;border:1px solid #49606f;background:#182c3b;color:var(--ink);padding:9px 17px;border-radius:8px;cursor:pointer;text-decoration:none}
+button[aria-pressed=true]{background:var(--accent);color:#08261f;border-color:var(--accent);font-weight:650}button:focus-visible,a:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.map{display:flex;justify-content:center;background:repeating-conic-gradient(#10212d 0% 25%,#182b38 0% 50%) 50%/20px 20px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.map img{display:block;width:100%;height:auto;max-height:650px;object-fit:contain;image-rendering:pixelated}.legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px;color:var(--muted);font-size:13px}.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px}
+.columns{display:grid;grid-template-columns:1.1fr 1fr;gap:22px}.columns .panel{min-width:0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:right;padding:10px 6px;border-bottom:1px solid var(--line)}th:first-child{text-align:left}
+li{margin:8px 0}summary{cursor:pointer;color:var(--accent)}.downloads{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}code{overflow-wrap:anywhere;color:#c0dfeb}footer{margin:28px 0;color:var(--muted);font-size:12px}
+@media(max-width:700px){main{padding:22px 14px}header{display:block}h1{font-size:28px}.badge{display:inline-block;margin-bottom:12px}.stats{grid-template-columns:1fr}.columns{grid-template-columns:1fr;gap:0}.panel{padding:16px}th,td{font-size:12px;padding:8px 3px}}
+</style></head><body><main>
+<header><div><div class="eyebrow">SatQuery · Tool 3</div><h1>Optical + SAR fusion</h1><p class="muted">Water and built-up candidates, with evidence from both sensors.</p></div><div class="badge">Threshold baseline · uncalibrated</div></header>
+<p class="muted">Optical: __OPTDATE__ · SAR: __SARDATE__ · __CRS__ · __DIMENSIONS__ pixels</p>
+<div class="stats"><div class="stat"><span>Water candidate pixels</span><strong id="water">__WATER__</strong><span id="waterarea"></span></div>
+<div class="stat"><span>Built-up candidate pixels</span><strong id="built">__BUILT__</strong><span id="builtarea"></span></div>
+<div class="stat"><span>Changed from optical-only</span><strong>__CHANGED__</strong><span>includes class and coverage changes</span></div></div>
+<section class="panel" aria-label="Map comparison"><div class="toolbar" aria-label="Classification layers">
+<button data-layer="optical_only" aria-pressed="false">Optical</button><button data-layer="sar_only" aria-pressed="false">SAR</button><button data-layer="fused" aria-pressed="true">Fused</button>
+<span id="layerlabel" class="muted" aria-live="polite">Fused candidates</span></div>
+<div class="map"><img id="map" src="fused.png" alt="Fused water and built-up candidate map"></div>
+<div class="legend"><span><i style="background:#27a4f2"></i>Water candidate</span><span><i style="background:#f86b59"></i>Built-up candidate</span><span><i style="background:#3e4e5b"></i>Other / unclassified</span><span>Checkerboard: no data</span></div>
+<div class="downloads"><a class="download" href="fused.tif" download>Fused GeoTIFF</a><a class="download" href="result.json" download>Result + receipt (JSON)</a></div>
+</section>
+<div class="columns"><section class="panel"><h2>What SAR contributed</h2><p>__CONTRIBUTION__</p><p class="muted">Fusion uses water from either valid sensor, then built-up from either sensor where water is absent. A pixel with no valid sensor remains no data.</p>
+<table><thead><tr><th>Layer</th><th>Valid</th><th>Water</th><th>Built-up</th></tr></thead><tbody>__ROWS__</tbody></table>
+<p class="muted">Counts describe candidate detections. Confidence has not been calibrated; sensor agreement is not accuracy. Areas, when available, are projected grid estimates.</p></section>
+<section class="panel"><h2>Input previews</h2><div class="toolbar"><button data-preview="optical" aria-pressed="true">Optical preview</button><button data-preview="sar" aria-pressed="false">SAR preview</button></div>
+<div class="map"><img id="preview" src="optical_preview.png" alt="Percentile-stretched optical input preview"></div><p id="previewlabel" class="muted">Optical preview channels: __CHANNELS__. Display stretch only.</p></section></div>
+<section class="panel"><h2>Validation notes</h2><ul>__WARNINGS__</ul><details><summary>Processing receipt</summary><p>Reference: green-band grid. Continuous optical bands use bilinear reprojection; SAR uses averaged linear power before smoothing and conversion to dB. Quality masks use nearest-neighbour reprojection.</p><p>Per-band input paths, dates, units, transforms, thresholds, and alignment operations are recorded in <a href="result.json">result.json</a>.</p><p>Run: <code>__RUNID__</code></p></details></section>
+<footer>Generated locally by Tool 3. No imagery is uploaded. This report's PNGs are previews; use the GeoTIFFs for GIS work.</footer>
+<noscript><p>JavaScript is disabled. Open <a href="optical_only.png">Optical</a>, <a href="sar_only.png">SAR</a>, or <a href="fused.png">Fused</a> directly.</p></noscript>
+<script id="facts" type="application/json">__FACTS__</script><script>
+const facts=JSON.parse(document.getElementById('facts').textContent);
+const labels={optical_only:'Optical candidates',sar_only:'SAR candidates',fused:'Fused candidates'};
+const format=n=>n.toLocaleString();
+function selectLayer(key){document.getElementById('map').src=key+'.png';document.getElementById('map').alt=labels[key]+' map';document.getElementById('layerlabel').textContent=labels[key];
+document.querySelectorAll('[data-layer]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.layer===key)));
+const row=facts.layers[key];[['water','water'],['built','builtup']].forEach(([id,role])=>{document.getElementById(id).textContent=format(row[role].pixels);document.getElementById(id+'area').textContent=row[role].area_ha===null?'Area unavailable in this CRS':row[role].area_ha.toLocaleString(undefined,{maximumFractionDigits:2})+' ha · grid estimate';});}
+document.querySelectorAll('[data-layer]').forEach(b=>b.addEventListener('click',()=>selectLayer(b.dataset.layer)));
+document.querySelectorAll('[data-preview]').forEach(b=>b.addEventListener('click',()=>{const key=b.dataset.preview;document.getElementById('preview').src=key+'_preview.png';document.getElementById('preview').alt=key+' input preview';document.querySelectorAll('[data-preview]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));document.getElementById('previewlabel').textContent=key==='sar'?'VV backscatter in dB, percentile-stretched for display.':'Optical preview channels: '+facts.optical_preview_bands.join(', ')+'. Display stretch only.';}));selectLayer('fused');
+</script></main></body></html>

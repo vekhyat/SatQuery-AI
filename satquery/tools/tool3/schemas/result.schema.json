@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool 3 handbook envelope contract 1.0 (module-owned subset)",
+  "type": "object",
+  "required": [
+    "task",
+    "tools",
+    "parameters",
+    "facts",
+    "answer_text",
+    "confidence",
+    "warnings",
+    "overlay",
+    "layers",
+    "receipt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "task": {
+      "enum": [
+        "optical_sar",
+        "reject"
+      ]
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "facts": {
+      "type": "object"
+    },
+    "answer_text": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "overlay": {
+      "type": "object",
+      "required": [
+        "type",
+        "file"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "landcover_mask",
+            "none"
+          ]
+        },
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "layers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "why_this_tool",
+        "rejected",
+        "reason"
+      ],
+      "properties": {
+        "why_this_tool": {
+          "type": "string"
+        },
+        "rejected": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "task": {
+            "const": "optical_sar"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "tools": {
+            "contains": {
+              "const": "optical_sar_v1"
+            }
+          },
+          "overlay": {
+            "properties": {
+              "type": {
+                "const": "landcover_mask"
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "layers": {
+            "required": [
+              "optical_only",
+              "sar_only",
+              "fused"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "optical_only": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sar_only": {
+                "type": "string",
+                "minLength": 1
+              },
+              "fused": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "facts": {
+            "required": [
+              "sar_contribution",
+              "layers",
+              "confidence_status",
+              "class_legend"
+            ],
+            "properties": {
+              "sar_contribution": {
+                "type": "string"
+              },
+              "confidence_status": {
+                "type": "string"
+              },
+              "layers": {
+                "type": "object",
+                "required": [
+                  "optical_only",
+                  "sar_only",
+                  "fused"
+                ]
+              }
+            }
+          },
+          "receipt": {
+            "required": [
+              "run_id",
+              "reference_grid"
+            ],
+            "properties": {
+              "rejected": {
+                "const": false
+              },
+              "reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task": {
+            "const": "reject"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "layers": {
+            "maxProperties": 0
+          },
+          "overlay": {
+            "properties": {
+              "type": {
+                "const": "none"
+              },
+              "file": {
+                "type": "null"
+              }
+            }
+          },
+          "receipt": {
+            "properties": {
+              "rejected": {
+                "const": true
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

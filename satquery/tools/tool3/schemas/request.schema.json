@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool 3 request contract 1.0",
+  "type": "object",
+  "required": [
+    "bands"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "bands": {
+      "type": "object",
+      "required": [
+        "green",
+        "nir",
+        "swir",
+        "vv"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "green": {
+          "$ref": "#/$defs/band"
+        },
+        "nir": {
+          "$ref": "#/$defs/band"
+        },
+        "swir": {
+          "$ref": "#/$defs/band"
+        },
+        "vv": {
+          "$ref": "#/$defs/band"
+        },
+        "vh": {
+          "$ref": "#/$defs/band"
+        },
+        "red": {
+          "$ref": "#/$defs/band"
+        },
+        "blue": {
+          "$ref": "#/$defs/band"
+        },
+        "scl": {
+          "$ref": "#/$defs/band"
+        },
+        "valid_mask": {
+          "$ref": "#/$defs/band"
+        }
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sar_units": {
+          "enum": [
+            "auto",
+            "linear",
+            "db"
+          ]
+        },
+        "ndwi_threshold": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "ndbi_threshold": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "vegetation_threshold": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "sar_water_vv_db": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "sar_water_vh_db": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "sar_built_vv_db": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "sar_built_vh_db": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "speckle_size": {
+          "type": "integer",
+          "enum": [
+            1,
+            3,
+            5,
+            7,
+            9,
+            11,
+            13,
+            15,
+            17,
+            19,
+            21,
+            23,
+            25,
+            27,
+            29,
+            31
+          ]
+        },
+        "morphology_size": {
+          "type": "integer",
+          "enum": [
+            1,
+            3,
+            5,
+            7,
+            9,
+            11,
+            13,
+            15,
+            17,
+            19,
+            21,
+            23,
+            25,
+            27,
+            29,
+            31
+          ]
+        },
+        "min_component_pixels": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "min_component_m2": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "min_overlap": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "max_date_gap_days": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_pixels": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "band": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        {
+          "type": "object",
+          "required": [
+            "path"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "band": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "scale": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "exclusiveMinimum": 0
+            },
+            "offset": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "nodata": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "units": {
+              "enum": [
+                null,
+                "linear",
+                "db"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

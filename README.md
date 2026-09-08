@@ -6,12 +6,23 @@ ISRO problem statement: **SatQuery AI** — an interactive vision-language assis
 
 ## Start here
 
-Open [`handbook.html`](handbook.html) in a browser. That is the team briefing: architecture, teaching notes (including LoRA), work order, checklists, PPT/video plan.
+Open [`docs/handbook.html`](docs/handbook.html) in a browser. That is the team briefing: architecture, teaching notes (including LoRA), work order, checklists, PPT/video plan.
+
+## Layout
+
+```text
+docs/           Handbook, product brief, and design system
+satquery/       Checker, router, contracts, storage
+apps/api/       FastAPI health, upload, and query
+apps/web/       Query Notebook (React) and combined local server
+tests/          API tests and tests/web for the notebook
+```
 
 ## Docs in this repo
 
-`handbook.html` is the complete team handbook, including the architecture,
+`docs/handbook.html` is the complete team handbook, including the architecture,
 six-person work split, technical plan, checklists, and presentation guidance.
+The notebook’s visual rules are in [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ## What we are building
 
@@ -33,13 +44,11 @@ Not three LLMs. A VLM/LoRA upgrade, if any, sits inside the single-image tool af
 | Backend checks | pytest, HTTPX TestClient, Python compileall | API, validation, storage, and upload-failure checks. |
 
 The three specialist workflows are single-image analysis, temporal change, and
-optical–SAR analysis. Their registered implementations currently return declared
-stubs. A trained model, VLM, LoRA pipeline, and deployment provider have not been
+optical–SAR analysis. Tool 3 is connected as `optical_sar_v1` and computes water/built-up candidate maps. The single-image and change implementations still return declared stubs. A trained model, VLM, LoRA pipeline, and deployment provider have not been
 implemented in this backend slice.
 
-The Query Notebook lives in `apps/web` on `vekhyat/query-notebook-frontend`.
-It is not on published `main` yet. Dependency manifests are `pyproject.toml` and
-`apps/web/package.json`.
+The Query Notebook lives in `apps/web`. Dependency manifests are `pyproject.toml`
+and `apps/web/package.json`.
 
 ## Backend vertical slice
 
@@ -49,7 +58,7 @@ The first executable backend contains three deliberately separate parts:
 2. The **router** applies visible if/then rules to choose `single_image`, `change`, `optical_sar`, or `reject`.
 3. The **API** is the front door used by Postman and, later, the website. It stores each upload for 24 hours and returns stable JSON.
 
-The specialist analysis tools are currently honest stubs. A successful route proves that the desk works; it does not claim that image analysis has happened.
+Tool 3 now runs from `/upload` and `/query`, with three computed candidate maps shown in the notebook. Single-image and change routes retain their declared stub behavior. See [Tool 3 handoff](docs/TOOL3_HANDOFF.md) for band requirements, Pack C, and integration details.
 
 ### Set up on Windows
 
@@ -105,7 +114,7 @@ curl.exe -X POST http://127.0.0.1:8000/query `
   -d '{"asset_ids":["PASTE-ASSET-UUID"],"question":"Describe the land cover"}'
 ```
 
-For change analysis, upload two aligned optical GeoTIFFs with different dates and place both IDs in `asset_ids`. For optical–SAR analysis, upload an exact-grid optical/SAR pair.
+For change analysis, upload two aligned optical GeoTIFFs with different dates and place both IDs in `asset_ids`. For optical–SAR analysis, upload an exact-grid optical/SAR pair with green/NIR/SWIR band descriptions and calibrated VV units; see `docs/TOOL3_HANDOFF.md`.
 
 ## Shared JSON templates
 
@@ -190,7 +199,7 @@ Warnings and trace messages may vary with the uploaded file.
 | `task` | `single_image`, `change`, `optical_sar`, or `reject`. |
 | `tools` | Versioned checker, router, and selected specialist identifiers; rejected routes have no specialist. |
 | `parameters` | Single-image asset ID; before/after asset IDs and dates; optical/SAR asset IDs; or a rejection code. |
-| `facts` | Specialist output dictionary. Currently empty for all stubs; agree on task-specific keys when implementing each tool. |
+| `facts` | Specialist output dictionary. Tool 3 includes class statistics, `sar_contribution`, `layer_urls`, artifact links and an uncalibrated confidence status. Stubs return an empty dictionary. |
 | `answer_text` | Composer-owned text for the UI. |
 | `confidence` | Number from 0 to 1. Stub results use 0; this is not a validated accuracy metric. |
 | `warnings` | List of messages about metadata, limitations, and tool execution. |
@@ -215,9 +224,7 @@ full `ResultEnvelope` above. The frontend reads that envelope.
 }
 ```
 
-The current composer uses a nonblank `facts.summary` when supplied, otherwise it
-returns the stub explanation. Implementing a real tool also requires updating the
-service's currently hardcoded `stub` trace status and its tests.
+The composer builds Tool 3 text from its measured `facts.sar_contribution`. Other tools can supply `facts.summary`; absent facts retain the stub explanation. The service records `ok` for completed Tool 3 runs and `rejected` for unsupported datasets, while Tools 1/2 retain `stub`.
 
 ### API error
 
@@ -243,7 +250,7 @@ type entries. A valid request that the router cannot support instead returns HTT
 ### Verify
 
 ```powershell
-python -m pytest tests apps/web/qa/test_web_server.py
+python -m pytest
 python -m compileall apps satquery tests
 ```
 
