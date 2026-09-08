@@ -92,6 +92,10 @@ def test_change_query_executes_registered_adapter_through_fake_http_worker(
     assert result["receipt"]["trace"][-1]["status"] == "ok"
     assert result["receipt"]["trace"][-1]["details"]["overlay_type"] == "change_mask"
     assert result["facts"]["caption"]["text"] == "a road was constructed"
+    assert result["answer_text"] == (
+        "A road was constructed. Changed pixels: 536 (0.82% of valid pixels). "
+        "Road change: 0.05% of valid pixels; building change: 0.76% of valid pixels."
+    )
     assert result["facts"]["confidence_status"] == "not_measured"
     assert result["confidence"] == 0.0
     assert result["overlay"] == {

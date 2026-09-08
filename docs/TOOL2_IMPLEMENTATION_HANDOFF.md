@@ -889,3 +889,85 @@ phase. The full real-checkpoint shared-application demonstration remains Phase
 3B9. Artifact access is local API access control based on retained upload
 provenance; multi-user authentication/authorization is a future application
 concern.
+
+## Phase 3B7 — deterministic Tool 2 answer composition
+
+### What the composer does
+
+`compose_answer()` now has one narrow Tool 2 branch for a successful
+`Task.CHANGE` plan using `change_mci_v1`. It produces a concise, stable summary
+from the already validated `ToolResult.facts`: the semantic caption, changed
+pixel count/percentage, optional road/building change percentages, and optional
+physical area. It performs no model inference, network call, geospatial
+calculation, or question answering.
+
+### Caption ownership and question limitation
+
+`facts.caption.text` is the preferred semantic description; `facts.summary` is
+used only when the caption structure is absent. The composer may normalize
+sentence casing and terminal punctuation for display, but never changes the
+caption's meaning. The MCI caption remains non-question-conditioned. The user
+question is not inspected or creatively answered by composition.
+
+### Statistics and formatting
+
+Changed pixels and `changed_percent` are emitted only when those existing facts
+are present. Pixel counts use thousands separators and percentages use two
+decimal places, while the underlying JSON facts remain unrounded. Road and
+building values are read directly from each class's existing
+`percent_of_valid_pixels` field; the composer never recomputes a denominator or
+substitutes `percent_of_changed_pixels`. The output labels them explicitly as
+percentages of valid pixels.
+
+Class 1 and class 2 mean semantic `road change` and `building change`. They do
+not reveal whether a feature was constructed, removed, demolished, increased,
+or decreased. Only the original MCI caption may contain directional language.
+Connected-component counts remain technical facts and are never presented as
+object counts.
+
+### No-change, area, and confidence behavior
+
+When `changed_pixels` is zero, the composer emits the caption and the zero
+changed-pixel summary, but omits zero-valued road/building lines to keep the
+answer natural. `physical_area_m2` and `physical_area_hectares` are included
+only when already present and numeric; no area is derived inside the composer
+and unavailable area is omitted. The `confidence=0.0` compatibility sentinel
+and `confidence_status=not_measured` are never rendered as “0% confidence”.
+
+Missing optional caption, class, area, and timing facts are handled without a
+crash and without invented values. Tool 3's existing SAR/optical wording,
+Tool 1 stub wording, and rejection envelopes remain unchanged.
+
+### API and tests
+
+The fake-worker integration now verifies upload -> query -> `change_mci_v1` ->
+deterministic composer -> `ResultEnvelope` with the formatted Tool 2 answer.
+Focused composer tests cover positive change, no change, area present/absent,
+confidence sentinel handling, semantic class wording, component non-counting,
+missing optional facts, Tool 3 preservation, and rejection preservation. The
+existing API and Tool 3 suites provide regression coverage for the unchanged
+orchestration behavior.
+
+### Problems encountered and exact fixes
+
+* **Symptom:** the initial composer tests returned the old summary or “not
+  connected” fallback. **Root cause:** no Tool 2-specific composition branch
+  existed. **Fix:** add a branch keyed to `Task.CHANGE` plus
+  `change_mci_v1`. **Why correct:** other tasks continue through their prior
+  branches and Tool 2 facts remain the sole source of new prose.
+* **Symptom:** one confidence test rejected a valid `2.00%` statistic.
+  **Root cause:** the assertion searched for the substring `0%`, which also
+  occurs inside `2.00%`. **Fix:** assert specifically against `0% confidence`.
+  **Why correct:** the production rule concerns the confidence sentinel, not
+  ordinary percentage text.
+* **Symptom:** the optional-summary test expected no terminal period.
+  **Root cause:** the display formatter intentionally normalizes sentence
+  punctuation. **Fix:** align the test with the documented natural-sentence
+  output. **Why correct:** source facts are unchanged; only answer presentation
+  is normalized.
+
+### Remaining limitations
+
+Tool 2 frontend rendering remains unimplemented. The full real-checkpoint
+shared-application CUDA demonstration remains Phase 3B9. No LLM, VQA layer, or
+direction-inference heuristic was added.
