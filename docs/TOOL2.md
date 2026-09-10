@@ -120,7 +120,7 @@ The ordinary main suite uses fake worker responses and requires no checkpoint:
 npm --prefix apps/web run build
 ```
 
-Torch is imported only when a checkpoint is actually loaded. Mask statistics,
+Torch is imported only by tensor preprocessing and model operations. Mask statistics,
 artifact writing, sample selection, and the in-process worker-contract tests
 run in the main environment. Tensor preprocessing and vendored model-class
 import skip when Torch is absent. The ordinary suite therefore does not verify
@@ -145,8 +145,8 @@ GeoTIFFs wrap LEVIR RGB fixtures with synthetic georeferencing, so those results
 do not establish geographic accuracy or arbitrary satellite-image support.
 
 Documentation refresh on 2026-09-10: the local main suite passed **230 tests and
-98 subtests**, with **8 skipped tests** (Torch/CUDA/checkpoint and one Windows
-symlink case). Helper, worker-contract, and analysis tests now run without Torch.
+98 subtests**, with **8 skipped tests** (Torch/CUDA/checkpoint and two Windows
+symlink cases). Helper, worker-contract, and analysis tests now run without Torch.
 `verify-tool2.cjs` and `verify-live-flow.cjs` passed against the combined server.
 The worker environment and checkpoint were absent in this checkout; real model
 inference was not rerun.
