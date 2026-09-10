@@ -20,6 +20,7 @@ Thumbs.db
 *.safetensors
 demo/packs/*.tif
 demo/packs/*.tiff
+!demo/packs/A/Pack_A_01.tif
 runtime/
 .idea/
 .vscode/

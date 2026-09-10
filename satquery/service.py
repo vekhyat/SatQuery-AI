@@ -104,7 +104,7 @@ class SatQueryService:
         ordered_assets = [ordered_by_id[asset_id] for asset_id in plan.ordered_asset_ids]
         context = (
             self.tool_context(plan.task, artifact_root_url=artifact_root_url)
-            if plan.task in {Task.CHANGE, Task.OPTICAL_SAR}
+            if plan.task in {Task.SINGLE_IMAGE, Task.CHANGE, Task.OPTICAL_SAR}
             else None
         )
         try:

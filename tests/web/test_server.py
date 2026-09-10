@@ -166,7 +166,7 @@ def test_root_content_served(client: TestClient) -> None:
     assert "investigation notebook" in response.text
 
 
-def test_health_upload_query_stub_stays_honest(
+def test_health_upload_query_runs_tool1_specialist_analysis(
     client: TestClient, geotiff_bytes: Callable[..., bytes]
 ) -> None:
     health = client.get("/api/health")
@@ -189,10 +189,13 @@ def test_health_upload_query_stub_stays_honest(
     assert set(result) == RESULT_KEYS
     assert result["task"] == "single_image"
     assert result["confidence"] == 0.0
-    assert result["facts"] == {}
-    assert result["overlay"] == {"type": "none", "file": None}
-    assert "not connected" in result["answer_text"]
-    assert result["receipt"]["trace"][-1]["status"] == "stub"
+    assert isinstance(result["facts"], dict)
+    assert "summary" in result["facts"]
+    assert result["overlay"]["type"] == "heatmap"
+    assert isinstance(result["overlay"]["file"], str)
+    assert result["overlay"]["file"].startswith("/api/artifacts/tool1/")
+    assert "This scene" in result["answer_text"]
+    assert result["receipt"]["trace"][-1]["status"] == "ok"
 
 
 def test_preview_returns_bounded_png(

@@ -8,6 +8,7 @@ from satquery.tools.change_mci import build_change_mci_v1, change_mci_v1
 from satquery.tools.context import ToolContext
 from satquery.tools.mci_worker_client import MCIWorkerClient
 from satquery.tools.optical_sar import optical_sar_v1
+from satquery.tools.single_image import single_image_v1
 
 ToolHandler = Callable[[list[AssetRecord], RoutePlan, ToolContext | None], ToolResult]
 STUB_TOOLS = frozenset({"single_image_stub_v0", "change_stub_v0"})
@@ -28,6 +29,7 @@ def _stub(name: str) -> ToolHandler:
 
 TOOL_REGISTRY: dict[str, ToolHandler] = {
     "single_image_stub_v0": _stub("single_image_stub_v0"),
+    "single_image_v1": single_image_v1,
     "change_stub_v0": _stub("change_stub_v0"),
     "change_mci_v1": change_mci_v1,
     "optical_sar_v1": optical_sar_v1,

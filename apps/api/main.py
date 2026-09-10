@@ -36,6 +36,7 @@ from satquery.tools.mci_worker_client import (
 from satquery.tools.change_mci_artifacts import artifact_path as tool2_artifact_path
 from satquery.tools.change_mci_artifacts import media_type as tool2_artifact_media_type
 from satquery.tools.optical_sar import artifact_path
+from satquery.tools.single_image import artifact_path as tool1_artifact_path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
@@ -214,6 +215,16 @@ def create_app(
         return FileResponse(
             path,
             media_type=tool2_artifact_media_type(filename),
+            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+        )
+
+    @app.get("/artifacts/tool1/{run_id}/{filename}")
+    def tool1_artifact(run_id: str, filename: str) -> FileResponse:
+        context = service.tool_context(Task.SINGLE_IMAGE)
+        path = tool1_artifact_path(context, run_id, filename)
+        return FileResponse(
+            path,
+            media_type="image/png" if path.suffix == ".png" else "application/json",
             headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
         )
 

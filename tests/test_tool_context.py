@@ -43,9 +43,27 @@ def test_tool2_context_uses_its_own_storage_and_url_with_shared_objects(tmp_path
     assert context.slots is slots
 
 
+def test_tool1_context_uses_its_own_storage_and_url_with_shared_objects(tmp_path):
+    store = AssetStore(tmp_path / "uploads", 1024, timedelta(hours=1))
+    slots = BoundedSemaphore(1)
+
+    context = context_module.build_tool_context(
+        task=Task.SINGLE_IMAGE,
+        store=store,
+        artifact_root_url="/artifacts",
+        slots=slots,
+    )
+
+    assert context.store is store
+    assert context.output_dir == store.root / "tool1-results"
+    assert context.artifact_base_url == "/artifacts/tool1"
+    assert context.slots is slots
+
+
 @pytest.mark.parametrize(
     ("task", "expected_url"),
     [
+        (Task.SINGLE_IMAGE, "/api/artifacts/tool1"),
         (Task.OPTICAL_SAR, "/api/artifacts/tool3"),
         (Task.CHANGE, "/api/artifacts/tool2"),
     ],
@@ -65,7 +83,7 @@ def test_context_preserves_mount_prefix_without_duplicate_slashes(
     assert context.artifact_base_url == expected_url
 
 
-@pytest.mark.parametrize("task", [Task.SINGLE_IMAGE, Task.REJECT])
+@pytest.mark.parametrize("task", [Task.REJECT])
 def test_context_rejects_tasks_without_specialist_artifacts(tmp_path, task):
     store = AssetStore(tmp_path / task.value, 1024, timedelta(hours=1))
 
@@ -96,6 +114,7 @@ def test_service_constructs_task_contexts_and_preserves_legacy_tool3_default(tmp
 
     legacy_tool3 = service.tool_context()
     tool2 = service.tool_context(Task.CHANGE, artifact_root_url="/api/artifacts/")
+    tool1 = service.tool_context(Task.SINGLE_IMAGE, artifact_root_url="/api/artifacts/")
 
     assert legacy_tool3.output_dir == store.root / "tool3-results"
     assert legacy_tool3.artifact_base_url == "/artifacts/tool3"
@@ -103,3 +122,6 @@ def test_service_constructs_task_contexts_and_preserves_legacy_tool3_default(tmp
     assert tool2.output_dir == store.root / "tool2-results"
     assert tool2.artifact_base_url == "/api/artifacts/tool2"
     assert tool2.slots is service.tool_slots
+    assert tool1.output_dir == store.root / "tool1-results"
+    assert tool1.artifact_base_url == "/api/artifacts/tool1"
+    assert tool1.slots is service.tool_slots

@@ -86,9 +86,9 @@ def route_query(assets: list[AssetRecord], question: str, pack: PackCheck) -> Ro
         asset = assets[0]
         return RoutePlan(
             task=Task.SINGLE_IMAGE,
-            tool="single_image_stub_v0",
+            tool="single_image_v1",
             ordered_asset_ids=[asset.asset_id],
-            parameters={"asset_id": str(asset.asset_id)},
+            parameters={"asset_id": str(asset.asset_id), "question": question},
             why="One valid GeoTIFF matches the single-image workflow.",
         )
 

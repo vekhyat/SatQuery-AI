@@ -16,6 +16,7 @@ class ToolContext:
 
 
 _TASK_LAYOUT = {
+    Task.SINGLE_IMAGE: ("tool1-results", "tool1"),
     Task.CHANGE: ("tool2-results", "tool2"),
     Task.OPTICAL_SAR: ("tool3-results", "tool3"),
 }
@@ -33,7 +34,7 @@ def build_tool_context(
     except KeyError as exc:
         raise ValueError(f"Task {task.value!r} does not have a specialist execution context.")
     normalized_root = artifact_root_url.rstrip("/")
-    if normalized_root.endswith(("/tool2", "/tool3")):
+    if normalized_root.endswith(("/tool1", "/tool2", "/tool3")):
         raise ValueError("artifact_root_url must be the shared artifact root, not a specialist URL.")
     return ToolContext(
         store=store,

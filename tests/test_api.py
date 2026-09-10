@@ -100,7 +100,7 @@ def test_user_hints_override_detected_metadata_with_provenance(
     assert len(body["warnings"]) == 2
 
 
-def test_single_image_route_is_an_honest_stub(
+def test_single_image_route_runs_tool1_specialist_analysis(
     client: TestClient, geotiff_bytes: Callable[..., bytes]
 ) -> None:
     uploaded = upload(client, geotiff_bytes(), modality="optical").json()
@@ -110,12 +110,21 @@ def test_single_image_route_is_an_honest_stub(
     assert set(body) == RESULT_KEYS
     assert body["task"] == "single_image"
     assert body["confidence"] == 0.0
-    assert body["facts"] == {}
-    assert body["overlay"] == {"type": "none", "file": None}
-    assert "not connected" in body["answer_text"]
+    assert isinstance(body["facts"], dict)
+    assert "summary" in body["facts"]
+    assert "labels" in body["facts"]
+    assert body["overlay"]["type"] == "heatmap"
+    assert isinstance(body["overlay"]["file"], str)
+    assert body["overlay"]["file"].startswith("/artifacts/tool1/")
+    assert "This scene" in body["answer_text"]
     assert any("No acquisition date" in warning for warning in body["warnings"])
-    assert "no image analysis" in body["warnings"][-1]
-    assert body["receipt"]["trace"][-1]["status"] == "stub"
+    assert body["receipt"]["trace"][-1]["status"] == "ok"
+    assert "single_image_v1" in body["tools"]
+
+    # Verify the artifact endpoint returns the overlay PNG
+    overlay_res = client.get(body["overlay"]["file"])
+    assert overlay_res.status_code == 200
+    assert overlay_res.headers["content-type"] == "image/png"
 
 
 def test_single_radar_description_is_not_mistaken_for_sensor_comparison(

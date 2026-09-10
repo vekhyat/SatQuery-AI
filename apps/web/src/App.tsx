@@ -6,6 +6,7 @@ import { ThinkingOrb } from 'thinking-orbs';
 import { FindingLeader } from './components/FindingLeader';
 import { Receipt } from './components/Receipt';
 import { SceneViewer } from './components/SceneViewer';
+import { Tool1SingleView, isTool1SingleResult } from './components/Tool1SingleView';
 import { Tool2ChangeView, isTool2ChangeResult } from './components/Tool2ChangeView';
 import { Tool3Maps, tool3LayerUrls } from './components/Tool3Maps';
 import { checkHealth, queryScenes, uploadScene } from './lib/api';
@@ -49,6 +50,7 @@ export default function App() {
   const hasStub = result?.receipt.trace.some(s => s.status === 'stub') ?? false;
   const isTool3Specialist = !isDemo && result?.task === 'optical_sar' && !result.receipt.rejected && result.tools.includes('optical_sar_v1');
   const isTool2Specialist = !isDemo && isTool2ChangeResult(result);
+  const isTool1Specialist = !isDemo && isTool1SingleResult(result);
   const tool3Maps = isTool3Specialist ? tool3LayerUrls(result) : null;
   const dirtyQuestion = !!result && current.question !== current.submittedQuestion;
   const showCallout = isDemo && !rejected && showOverlay && !!result && current.mode === 'change';
@@ -215,7 +217,8 @@ export default function App() {
             <FindingLeader active={showCallout} />
             {tool3Maps && result ? <Tool3Maps key={tool3Maps.fused} result={result} urls={tool3Maps} busy={busy} />
               : isTool2Specialist && result ? <Tool2ChangeView result={result} scenes={current.scenes} busy={busy} />
-                : <SceneViewer scenes={current.scenes} mode={viewMode} showOverlay={showOverlay && !!result && !rejected} rejected={rejected} busy={busy} onOverlayChange={setShowOverlay} />}
+                : isTool1Specialist && result ? <Tool1SingleView result={result} scene={current.scenes[0]} busy={busy} />
+                  : <SceneViewer scenes={current.scenes} mode={viewMode} showOverlay={showOverlay && !!result && !rejected} rejected={rejected} busy={busy} onOverlayChange={setShowOverlay} />}
             {result || busy ? (
               <section className={'answer-panel ' + (rejected ? 'answer-rejected' : '')} aria-label="Analysis answer" aria-live="polite">
                 <div className="answer-icon">{rejected ? <AlertTriangle size={21} /> : <Check size={21} />}</div>
