@@ -38,6 +38,6 @@ tool3-demo = "satquery.tools.tool3.demo:main"
 tool3-evaluate = "satquery.tools.tool3.evaluate_cli:main"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "experiments/tool2_mci/tests"]
 addopts = "-q"
 pythonpath = ["."]

@@ -1,5 +1,6 @@
 """The main SatQuery environment may import the shared MCI contract without Torch."""
 
+import subprocess
 import sys
 import unittest
 import uuid
@@ -132,11 +133,21 @@ class ChangeMciProtocolTest(unittest.TestCase):
             )
 
     def test_main_side_client_and_adapter_do_not_import_mci_runtime(self) -> None:
-        import satquery.registry
-        import satquery.router
-        import satquery.service
-        import satquery.tools.change_mci
-        import satquery.tools.mci_worker_client
-
-        forbidden = [name for name in sys.modules if name == "torch" or name.startswith("experiments.tool2_mci")]
-        self.assertEqual(forbidden, [])
+        script = (
+            "import sys\n"
+            "import satquery.registry\n"
+            "import satquery.router\n"
+            "import satquery.service\n"
+            "import satquery.tools.change_mci\n"
+            "import satquery.tools.mci_worker_client\n"
+            "forbidden = [name for name in sys.modules if name == 'torch' or name.startswith('experiments.tool2_mci')]\n"
+            "print('\\n'.join(forbidden))\n"
+            "raise SystemExit(1 if forbidden else 0)\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout or result.stderr)

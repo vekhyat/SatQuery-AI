@@ -351,7 +351,7 @@
 
     <main>
       <h1 id="start">Team handbook</h1>
-      <p class="lede">This file is the briefing. The code and docs live in one GitHub repo. Use that repo for everything. Follow <a href="#work">Work order</a> after you can clone and open this page from the repo.</p>
+      <p class="lede">This file is the briefing: architecture, teaching notes, work order, PPT/video. Current implemented behavior is in <code>README.md</code>, <code>docs/TOOL2.md</code>, and <code>docs/TOOL3_HANDOFF.md</code>. If a job sketch below disagrees with those files or the source, the source wins.</p>
       <p><span class="pill">PS SIH26167</span> <span class="pill">Software · Space</span> <span class="pill">ISRO</span> <span class="pill">PPT + video 10 Sep · present 12 Sep</span></p>
 
       <div class="repo-banner" id="github">
@@ -376,7 +376,7 @@ git push</pre>
           </li>
           <li><b>Do not commit</b> GeoTIFF/TIFF, model weights, or <code>.env</code>. Those are gitignored on purpose.</li>
         </ol>
-        <p>Files to read after clone: <code>README.md</code>, then <code>docs/handbook.html</code> (this).</p>
+        <p>Files to read after clone: <code>README.md</code>, <code>docs/TOOL2.md</code>, <code>docs/TOOL3_HANDOFF.md</code>, then this handbook.</p>
       </div>
 
       <div class="stop">
@@ -502,16 +502,15 @@ if question does not match files    → reject and explain</pre>
       </div>
 
       <h3>Tool 2 · Change (M5) · Scene 2, hero</h3>
-      <p>Question to lock: <i>Has the built-up area increased, decreased, or remained unchanged?</i></p>
-      <p>Simplest version: M3 already confirmed alignment. Subtract (or compare) the two images, threshold, paint changed pixels red, count area, emit increased / decreased / unchanged. Do not paste two screenshots into a chatbot.</p>
+      <p>Shipped as <code>change_mci_v1</code>. Two dated optical GeoTIFFs, exact same grid, <b>256×256 three-band uint8 RGB</b>. A separate Python 3.11 worker loads the frozen Change-Agent MCI checkpoint and returns a caption, semantic mask (unchanged / road / building), and pixel statistics. The main API does not import Torch. The question is used for routing only; the caption is not VQA. Setup: <code>docs/TOOL2.md</code>.</p>
       <div class="teach">
-        <strong>Teach: image differencing</strong>
-        If pixel values are comparable, |after - before| is large where the ground changed. Threshold that map, you get a mask. Convert pixel count × pixel size (from GeoTIFF transform) to hectares. Noise will fire on clouds and season. For 12 Sep pick a pair where the change is obvious (new buildings, a river shift). Later you can swap in a dual-encoder change network. Same JSON.
+        <strong>Teach: image differencing vs the shipped model</strong>
+        |after - before| plus a threshold is the classroom version of change detection. That is not what runs. The worker is a dual-encoder change network with a caption decoder. Pixel counts × pixel size still become area, but only when the GeoTIFF has a validated projected metre grid. Do not paste two screenshots into a chatbot.
       </div>
       <div class="checks" data-owner="M5">
-        <label><input type="checkbox" data-id="t21" /> Mask PNG/TIF produced</label>
-        <label><input type="checkbox" data-id="t22" /> answer_key is one of increased | decreased | unchanged</label>
-        <label><input type="checkbox" data-id="t23" /> Scene 2 never fails on the frozen pair</label>
+        <label><input type="checkbox" data-id="t21" /> Worker returns caption + semantic mask + overlay</label>
+        <label><input type="checkbox" data-id="t22" /> Notebook shows Compare / Overlay / Semantic mask, not a stub</label>
+        <label><input type="checkbox" data-id="t23" /> 256×256 RGB pair never falls back to <code>change_stub_v0</code></label>
       </div>
 
       <h3>Tool 3 · Optical + SAR (M6) · Scene 3</h3>
@@ -593,7 +592,7 @@ if question does not match files    → reject and explain</pre>
       <pre>Website, Checker, Router, Composer     → always code
 Tool 1  now: classifier / stub
         later: optional LoRA-tuned small VLM, still JSON out
-Tool 2  change comparison              → not a VLM
+Tool 2  frozen Change-Agent MCI worker → not a VLM
 Tool 3  two-sensor fusion              → not a VLM</pre>
       <p>If a judge asks “where is the VLM?” say: there isn’t one in the architecture. Single-image Q&amp;A is a specialist tool. If we fine-tune a VLM it only replaces that tool. The desk stays code.</p>
 
@@ -638,7 +637,7 @@ Tool 3  two-sensor fusion              → not a VLM</pre>
         <tr><td>M2</td><td>Website</td><td>3-mode UI, overlays, receipt, drives laptop 12 Sep</td><td>Backend logic</td></tr>
         <tr><td>M3</td><td>Checker + samples</td><td>GeoTIFF checks, four packs, backup laptop</td><td>Routing</td></tr>
         <tr><td>M4</td><td>Tool 1</td><td>Single-image facts. Later: LoRA/classifier</td><td>Change, fusion</td></tr>
-        <tr><td>M5</td><td>Tool 2</td><td>Change mask + increased/decreased. Hero scene</td><td>UI</td></tr>
+        <tr><td>M5</td><td>Tool 2</td><td>MCI worker, change caption + semantic mask. Hero scene</td><td>UI</td></tr>
         <tr><td>M6</td><td>Tool 3 + film</td><td>Optical/SAR/fused + 2-min video with M2</td><td>Router</td></tr>
       </table>
       <p>PPT: M1 words, M2/M6 on the official 6-slide template. Daily 20 min: can the 3 scenes run, yes or no.</p>
@@ -822,24 +821,23 @@ Tool 3  two-sensor fusion              → not a VLM</pre>
       </article>
 
       <article class="job" id="job7">
-        <div class="job-head"><div class="job-n">7</div><div class="job-t">Tool 2: before / after change</div><div class="job-m">M5 · day 3-6</div></div>
+        <div class="job-head"><div class="job-n">7</div><div class="job-t">Tool 2: before / after change</div><div class="job-m">M5 · shipped</div></div>
         <div class="job-body">
-          <p class="dep">Depends on: jobs 2-4. Hero scene.</p>
-          <p>Locked question: <i>Has the built-up area increased, decreased, or remained unchanged?</i></p>
+          <p class="dep">Depends on: jobs 2-4. Hero scene. Current setup: <code>docs/TOOL2.md</code>.</p>
+          <p>Locked demo question: <i>What changed between these two dates?</i> Routing uses the question; the model caption does not.</p>
           <ol>
-            <li>Assume checker already said the pair is aligned. If shapes differ by a few pixels, resize the second to the first and put a warning in JSON.</li>
-            <li>Read band 1 (or a grayscale of RGB). Compute <code>diff = abs(after - before)</code>.</li>
-            <li>Threshold (start at a percentile, e.g. top 10%). That binary map is the mask.</li>
-            <li>Count mask pixels. Multiply by pixel width × height from the GeoTIFF transform. Convert m² to hectares.</li>
-            <li>For the demo pair you <i>chose</i> because built-up grew, set <code>answer_key: "increased"</code>. Optionally compare mean brightness in the mask on after vs before so it is not a hardcoded word.</li>
-            <li>Save a red overlay PNG (mask painted on the after image).</li>
-            <li>Return facts: <code>answer_key</code>, <code>area_ha</code>, <code>class: "built-up"</code>, overlay file, confidence (start at 0.7 and lower it if the mask is noisy).</li>
+            <li>Checker already requires an exact-grid optical pair with different dates. Do not silently resize.</li>
+            <li>Adapter additionally requires 256×256, three-band uint8 RGB. Anything else is a rejection, not a stub.</li>
+            <li>Main API calls a local HTTP worker. Worker loads <code>MCI_model.pth</code> once on CUDA (Python 3.11 env). Main process stays Torch-free.</li>
+            <li>Worker returns a pair-level caption, class mask (0 unchanged, 1 road, 2 building), overlay, and pixel statistics. Area in m²/ha only when the CRS is projected metres.</li>
+            <li>Composer turns caption + counts into <code>answer_text</code>. <code>confidence=0.0</code> means not measured.</li>
+            <li>Notebook shows Compare, Overlay, and Semantic mask. If the worker is down: HTTP 503, no <code>change_stub_v0</code> fallback.</li>
           </ol>
-          <p class="done">Done when: Pack B produces increased (or whatever is true), a red PNG, and an area number, every time.</p>
+          <p class="done">Done when: a valid 256×256 pair produces caption + mask through the notebook, and an undersized or worker-down pair never looks like a successful analysis.</p>
           <div class="checks">
-            <label><input type="checkbox" data-id="s7a" /> Diff + threshold mask</label>
-            <label><input type="checkbox" data-id="s7b" /> Area in hectares</label>
-            <label><input type="checkbox" data-id="s7c" /> Red overlay on after-image</label>
+            <label><input type="checkbox" data-id="s7a" /> Isolated MCI worker + <code>change_mci_v1</code></label>
+            <label><input type="checkbox" data-id="s7b" /> Public artifacts via main API</label>
+            <label><input type="checkbox" data-id="s7c" /> No stub fallback when the worker is unavailable</label>
           </div>
         </div>
       </article>
@@ -1036,7 +1034,7 @@ Tool 3  two-sensor fusion              → not a VLM</pre>
             <li>Download a <i>subset</i> of BigEarthNet.txt + matching S1/S2 patches. Freeze the official test split. Never train on it.</li>
             <li>Train a land-cover head on BigEarthNet, <i>or</i> LoRA a small VLM (~1B, PEFT, rank 8-16) for caption + VQA.</li>
             <li>Save config, seed, metrics, checkpoint. Plug into <code>single_image_v1</code>. UI does not change.</li>
-            <li>Then improve Tool 2 (pair model / CDVQA) and Tool 3 (two-stem fusion + optical-only vs SAR-only vs fused table).</li>
+            <li>Then improve Tool 2 (question-conditioned CDVQA on top of the existing pair model) and Tool 3 (two-stem fusion + optical-only vs SAR-only vs fused table).</li>
           </ol>
           <p class="done">Done later when: one adapted checkpoint beats its unadapted baseline on a held-out slice, and the app still calls the same function name.</p>
           <div class="checks">
@@ -1121,7 +1119,7 @@ Tool 3  two-sensor fusion              → not a VLM</pre>
       <table>
         <tr><th>They say</th><th>You say</th></tr>
         <tr><td>This is ChatGPT + upload</td><td>ChatGPT does not validate GeoTIFFs, distinguish SAR, align pairs, or emit a map mask. We route to specialists and show the receipt.</td></tr>
-        <tr><td>Where did you fine-tune a VLM?</td><td>The architecture is a desk. Adaptation is a later upgrade of Tool 1 (BigEarthNet). Internal demo proves the workflow. We will not lie about stubs.</td></tr>
+        <tr><td>Where did you fine-tune a VLM?</td><td>The architecture is a desk. Tool 2 is a frozen change model in a worker. Tool 3 is threshold fusion. Only Tool 1 is still a stub; a VLM, if any, replaces that tool after 12 Sep.</td></tr>
         <tr><td>Did you use both sensors?</td><td>Toggle optical / SAR / fused. Fused is not a copy of optical.</td></tr>
         <tr><td>Unaligned pair?</td><td>Checker rejects. We do not silently warp.</td></tr>
       </table>

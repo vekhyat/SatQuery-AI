@@ -1,4 +1,4 @@
-import json
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,7 +16,11 @@ from experiments.tool2_mci.mci_inference import (
 )
 
 
+_HAS_TORCH = importlib.util.find_spec("torch") is not None
+
+
 class MCIInferenceHelpersTest(unittest.TestCase):
+    @unittest.skipUnless(_HAS_TORCH, "tensor preprocessing requires torch in the worker environment")
     def test_preprocess_uses_research_normalization(self):
         pixels = np.zeros((256, 256, 3), dtype=np.uint8)
         pixels[:, :, 0] = 100
@@ -37,6 +41,7 @@ class MCIInferenceHelpersTest(unittest.TestCase):
             expected[channel, :, :] /= std[channel]
         np.testing.assert_array_equal(tensor.numpy()[0], expected)
 
+    @unittest.skipUnless(_HAS_TORCH, "tensor preprocessing requires torch in the worker environment")
     def test_preprocess_rejects_non_256_image(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "small.png"

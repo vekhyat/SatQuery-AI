@@ -1,6 +1,6 @@
 # M6 Tool 3: repository integration
 
-Tool 3 is connected to this repository's existing checker, registry, composer, API and Query Notebook. Code lives under `satquery/tools/`, documentation under `docs/`, and the Pack C recipe under `demo/packs/C/`, following the handbook layout. The integration targets repository base `4b01f1c`.
+Tool 3 is connected to this repository's existing checker, registry, composer, API and Query Notebook. Code lives under `satquery/tools/`, documentation under `docs/`, and the Pack C recipe under `demo/packs/C/`, following the handbook layout. The original integration targeted repository base `4b01f1c`; subsequent shared-service changes use the task-specific `ToolContext` described below.
 
 The implemented models in **`satquery/contracts.py`** remain authoritative. They differ from the earlier handbook sketch: they include a trace and do not define top-level `layers`. No replacement schema or second main API is needed.
 
@@ -47,7 +47,7 @@ from satquery.tools.optical_sar import optical_sar_v1
 TOOL_REGISTRY["optical_sar_v1"] = optical_sar_v1
 ```
 
-The handler takes `assets: list[AssetRecord]`, `plan: RoutePlan`, and a server-owned `ToolContext`, then returns the existing **`ToolResult`**. `SatQueryService` supplies storage, output directory, artifact URL prefix and a shared worker slot through this context. The stub handlers accept the context too; single-image and change behavior remains unchanged.
+The handler takes `assets: list[AssetRecord]`, `plan: RoutePlan`, and a server-owned `ToolContext`, then returns the existing **`ToolResult`**. `SatQueryService` supplies storage, output directory, artifact URL prefix and a shared worker slot through this context. The stub handlers accept the context too. Single-image routing remains a stub; temporal change now selects `change_mci_v1` with its own output directory and isolated model worker (see [Tool 2](TOOL2.md)).
 
 Tool 3 returns only `facts`, `confidence`, `warnings`, and `overlay`. The composer writes the answer from `facts.sar_contribution`. The service writes the receipt and includes the fusion rule in its tool trace. Successful Tool 3 traces say `ok`; unsupported bands/units/pixels produce `task="reject"` and a rejected tool trace. Invalid HTTP requests and storage failures retain the repository's existing `ErrorEnvelope` behavior.
 
@@ -89,7 +89,7 @@ tool3-evaluate --prediction runtime/tool3/RUN_ID/fused.tif --reference labels/re
 
 The standalone manifest envelope is internal to this core and its offline report. Its JSON schema files are packaged with the core; they do not replace the team's Pydantic models. Real satellite accuracy requires independent reference labels and representative sensor validation. Refer to `TOOL3_ALGORITHM.md` for full preprocessing/configuration details.
 
-## Verify and submit
+## Verify the integration
 
 ```powershell
 python -m pytest
@@ -99,6 +99,8 @@ npm --prefix apps/web run build
 
 For the browser check, generate Pack C and start the combined server, then run `node tests/web/verify-tool3.cjs`. It defaults to locally installed Microsoft Edge in headless mode; set `PLAYWRIGHT_CHANNEL` for another installed Playwright channel and `SATQUERY_TEST_URL` for a different local port.
 
-Submit the prepared repository changes together: `satquery/tools/`, registry/router/service/composer changes, API artifact route, frontend map component, dependencies, tests, docs, and Pack C README/generator. These small shared-file edits are required to replace the Tool 3 stub. Do not replace `satquery/contracts.py`, M1's other tools, or the entire repository with the earlier standalone package.
-
-Generated imagery, runtime results, environments, build outputs, credentials and old backups are gitignored or excluded from the handoff archive. The files were prepared locally; no GitHub push is part of this preparation. Before an eventual upload, fetch the team branch again and resolve any intervening changes.
+The Tool 3 integration is already on `main`. The commands above verify the current
+checkout; they are not instructions to replace shared modules or re-submit the
+original handoff. Generated imagery, runtime results, environments, and build
+outputs remain Git-ignored. The dated acceptance record is in
+[Tool 3 validation](TOOL3_VALIDATION.md).

@@ -1,5 +1,7 @@
 # Tool 3 integration verification
 
+This is a historical verification record. Its single-image/change-stub browser results describe the 2026-09-06 revision. Temporal change now uses `change_mci_v1`; use the [Tool 2 guide](TOOL2.md) for current setup and verification.
+
 ## Local merge verification, 2026-09-06
 
 Rechecked the integrated branch at `573b7bb` in the Desktop checkout. The first

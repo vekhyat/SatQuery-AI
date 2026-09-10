@@ -12,21 +12,24 @@ Open [`docs/handbook.html`](docs/handbook.html) in a browser. That is the team b
 
 ```text
 docs/           Handbook, product brief, and design system
-satquery/       Checker, router, contracts, storage
+satquery/       Checker, router, contracts, storage, specialist adapters and Tool 3
 apps/api/       FastAPI health, upload, and query
 apps/web/       Query Notebook (React) and combined local server
-tests/          API tests and tests/web for the notebook
+experiments/    Isolated Tool 2 MCI model worker and standalone analysis
+requirements/   Separate Python 3.11 worker dependency pins
+tests/          Backend, opt-in model/E2E, and notebook browser checks
 ```
 
 ## Docs in this repo
 
 `docs/handbook.html` is the complete team handbook, including the architecture,
 six-person work split, technical plan, checklists, and presentation guidance.
+For current implemented behavior, start with this README and the [Tool 2 guide](docs/TOOL2.md) or [Tool 3 handoff](docs/TOOL3_HANDOFF.md). The handbook includes earlier plans; current source code and contracts take precedence.
 The notebook’s visual rules are in [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ## What we are building
 
-A website: upload satellite file(s), ask a question, a **code router** picks one of three tools (single image, before/after change, optical+SAR), and facts are drawn on a map with a visible receipt.
+A website: upload satellite file(s), ask a question, a **code router** picks one of three tools (single image, before/after change, optical+SAR), and results appear as raster evidence with a visible receipt.
 
 Not three LLMs. A VLM/LoRA upgrade, if any, sits inside the single-image tool after the 12 Sep internal demo.
 
@@ -44,8 +47,9 @@ Not three LLMs. A VLM/LoRA upgrade, if any, sits inside the single-image tool af
 | Backend checks | pytest, HTTPX TestClient, Python compileall | API, validation, storage, and upload-failure checks. |
 
 The three specialist workflows are single-image analysis, temporal change, and
-optical–SAR analysis. Tool 3 is connected as `optical_sar_v1` and computes water/built-up candidate maps. The single-image and change implementations still return declared stubs. A trained model, VLM, LoRA pipeline, and deployment provider have not been
-implemented in this backend slice.
+optical–SAR analysis. Tool 2 is connected as `change_mci_v1`: a separate Python 3.11 worker runs the pretrained Change-Agent MCI checkpoint and returns a change caption, semantic masks, and statistics. Tool 3 runs as `optical_sar_v1` and computes water/built-up candidate maps. Only the normal single-image route remains a declared stub.
+
+The main API requires Python 3.12+ and does not import Torch. The MCI worker has its own pinned dependencies and must be started separately; installing the main package does not install the worker or checkpoint. Training, LoRA, question-conditioned VQA, and deployment are not implemented.
 
 The Query Notebook lives in `apps/web`. Dependency manifests are `pyproject.toml`
 and `apps/web/package.json`.
@@ -56,9 +60,9 @@ The first executable backend contains three deliberately separate parts:
 
 1. The **checker** opens a GeoTIFF and verifies its geospatial metadata. For a pair, it requires the same CRS, dimensions, and pixel grid.
 2. The **router** applies visible if/then rules to choose `single_image`, `change`, `optical_sar`, or `reject`.
-3. The **API** is the front door used by Postman and, later, the website. It stores each upload for 24 hours and returns stable JSON.
+3. The **API** is the front door used by the Query Notebook and API clients. It stores each upload for 24 hours and returns stable JSON.
 
-Tool 3 now runs from `/upload` and `/query`, with three computed candidate maps shown in the notebook. Single-image and change routes retain their declared stub behavior. See [Tool 3 handoff](docs/TOOL3_HANDOFF.md) for band requirements, Pack C, and integration details.
+Tools 2 and 3 run through `/upload` and `/query`. Tool 2 adds Compare, Overlay, and Semantic mask views; Tool 3 shows three computed candidate maps. Single-image queries retain declared stub behavior. See the [Tool 2 setup and limits](docs/TOOL2.md) before querying a temporal pair. See [Tool 3 handoff](docs/TOOL3_HANDOFF.md) for band requirements, Pack C, and integration details.
 
 ### Set up on Windows
 
@@ -77,11 +81,13 @@ Start the local-only API:
 python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Open `http://127.0.0.1:8000/docs` for the interactive API page. The three public endpoints are:
+Open `http://127.0.0.1:8000/docs` for the interactive API page. The core endpoints are:
 
 - `GET /health`
 - `POST /upload`
 - `POST /query`
+- `GET /artifacts/tool2/{run_id}/{filename}` for completed change evidence
+- `GET /artifacts/tool3/{run_id}/{filename}` for optical/SAR evidence
 
 To run the Query Notebook with the API and raster previews in one process, see
 [`apps/web/README.md`](apps/web/README.md):
@@ -93,7 +99,7 @@ npm --prefix apps/web run build
 ```
 
 Then open `http://127.0.0.1:5173`. That server exposes the API under `/api`.
-The Uvicorn command above is backend-only.
+The Uvicorn command above is backend-only. Live Tool 2 analysis also needs the [separate MCI worker](docs/TOOL2.md#start-the-model-worker); the combined server does not launch it.
 
 ### Upload and query
 
@@ -114,7 +120,7 @@ curl.exe -X POST http://127.0.0.1:8000/query `
   -d '{"asset_ids":["PASTE-ASSET-UUID"],"question":"Describe the land cover"}'
 ```
 
-For change analysis, upload two aligned optical GeoTIFFs with different dates and place both IDs in `asset_ids`. For optical–SAR analysis, upload an exact-grid optical/SAR pair with green/NIR/SWIR band descriptions and calibrated VV units; see `docs/TOOL3_HANDOFF.md`.
+For change analysis, upload two exact-grid, 256×256, three-band uint8 RGB optical GeoTIFFs with different dates and place both IDs in `asset_ids`. The router orders them by date. The MCI worker must be ready; unavailable workers return an error without falling back to a stub. For optical–SAR analysis, upload an exact-grid optical/SAR pair with green/NIR/SWIR band descriptions and calibrated VV units; see `docs/TOOL3_HANDOFF.md`.
 
 ## Shared JSON templates
 
@@ -199,7 +205,7 @@ Warnings and trace messages may vary with the uploaded file.
 | `task` | `single_image`, `change`, `optical_sar`, or `reject`. |
 | `tools` | Versioned checker, router, and selected specialist identifiers; rejected routes have no specialist. |
 | `parameters` | Single-image asset ID; before/after asset IDs and dates; optical/SAR asset IDs; or a rejection code. |
-| `facts` | Specialist output dictionary. Tool 3 includes class statistics, `sar_contribution`, `layer_urls`, artifact links and an uncalibrated confidence status. Stubs return an empty dictionary. |
+| `facts` | Specialist output dictionary. Tool 2 includes caption provenance, changed-pixel and class statistics, optional physical area, components, model/timing information, and artifact URLs. Tool 3 includes class statistics, `sar_contribution`, `layer_urls`, artifact links and an uncalibrated confidence status. Stubs return an empty dictionary. |
 | `answer_text` | Composer-owned text for the UI. |
 | `confidence` | Number from 0 to 1. Stub results use 0; this is not a validated accuracy metric. |
 | `warnings` | List of messages about metadata, limitations, and tool execution. |
@@ -224,7 +230,9 @@ full `ResultEnvelope` above. The frontend reads that envelope.
 }
 ```
 
-The composer builds Tool 3 text from its measured `facts.sar_contribution`. Other tools can supply `facts.summary`; absent facts retain the stub explanation. The service records `ok` for completed Tool 3 runs and `rejected` for unsupported datasets, while Tools 1/2 retain `stub`.
+The composer builds Tool 2 text from the model caption and measured mask statistics, and Tool 3 text from `facts.sar_contribution`. Other tools can supply `facts.summary`; absent facts retain the stub explanation. The service records `ok` for completed Tools 2/3 runs and `rejected` for unsupported datasets. Tool 1 retains `stub`. Tool 2 captions are not conditioned on the submitted question, and `confidence=0.0` means not measured.
+
+Tool 2 worker failures use `ErrorEnvelope`: busy is HTTP 429, unavailable/not-ready is 503, timeout is 504, and invalid worker responses or inference failures are 502. Unsupported Tool 2 input becomes an HTTP 200 rejection envelope with no overlay.
 
 ### API error
 
@@ -254,4 +262,6 @@ python -m pytest
 python -m compileall apps satquery tests
 ```
 
-Configuration is optional: `SATQUERY_RUNTIME_DIR`, `SATQUERY_MAX_UPLOAD_MIB`, `SATQUERY_RETENTION_HOURS`, and comma-separated `SATQUERY_CORS_ORIGINS`. The API binds to localhost through the Uvicorn command above; authentication and deployment are intentionally deferred.
+The ordinary suite is checkpoint-free. Torch is imported only for real inference; helper and worker-contract tests run without it. Tensor preprocessing skips when Torch is absent. Real CUDA/checkpoint checks are opt-in; see [Tool 2 verification](docs/TOOL2.md#verification).
+
+Configuration is optional: `SATQUERY_RUNTIME_DIR`, `SATQUERY_MAX_UPLOAD_MIB`, `SATQUERY_RETENTION_HOURS`, and comma-separated `SATQUERY_CORS_ORIGINS`. Tool 2 adds `SATQUERY_MCI_WORKER_URL` (default `http://127.0.0.1:8012`), `SATQUERY_MCI_CONNECT_TIMEOUT_SECONDS` (1), and `SATQUERY_MCI_ANALYSIS_TIMEOUT_SECONDS` (15). The API binds to localhost through the Uvicorn command above; authentication and deployment are intentionally deferred.

@@ -1,5 +1,11 @@
 # Tool 2 implementation handoff
 
+## Current status and how to read this log
+
+As of source revision `58d5b51`, Phases 3B1–3B9 are integrated on `main`: `change_mci_v1` is active, public artifacts and deterministic answer composition are implemented, and the notebook has a dedicated change view. Start with [Tool 2 setup and current limitations](TOOL2.md) for day-to-day use.
+
+The sections below are chronological phase records. Statements such as “inactive,” “not implemented,” “next phase,” and phase-specific Git state describe that phase, not the current checkout. Phase 3B9 records the original real CUDA verification; it is historical evidence, not a claim that every machine pulling this repository has the checkpoint or worker installed.
+
 ## Phase 3B1 — isolated MCI worker protocol and API boundary
 
 ### Goal and status

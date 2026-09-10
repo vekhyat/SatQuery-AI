@@ -3,6 +3,9 @@ import unittest
 from pathlib import Path
 
 
+_HAS_TORCH = importlib.util.find_spec("torch") is not None
+
+
 class MCIVendorBoundaryTest(unittest.TestCase):
     def test_isolated_vendor_package_and_vocabulary_are_available(self):
         package_name = "experiments.tool2_mci.vendor.change_agent_mci"
@@ -23,6 +26,7 @@ class MCIVendorBoundaryTest(unittest.TestCase):
         self.assertEqual(len(vocab), 468)
         self.assertEqual(sorted(vocab.values()), list(range(468)))
 
+    @unittest.skipUnless(_HAS_TORCH, "vendored model classes import torch")
     def test_runtime_resolves_model_classes_from_isolated_vendor(self):
         from experiments.tool2_mci import mci_inference
 

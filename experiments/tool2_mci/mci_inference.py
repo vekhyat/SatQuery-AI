@@ -10,10 +10,20 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import numpy as np
-import torch
 from PIL import Image
 
 from .vendor.change_agent_mci import VOCAB_PATH
+
+
+def _require_torch():
+    """Import torch only when inference runs. The main SatQuery API stays Torch-free."""
+    try:
+        import torch
+    except ImportError as exc:
+        raise ImportError(
+            "The MCI worker environment requires torch; the main SatQuery API does not."
+        ) from exc
+    return torch
 
 
 MEAN = [0.39073 * 255, 0.38623 * 255, 0.32989 * 255]
@@ -63,7 +73,8 @@ def load_and_validate_vocab(vocab_path: str | Path) -> dict[str, int]:
     return {str(token): int(token_id) for token, token_id in vocab.items()}
 
 
-def preprocess_image(image_path: str | Path) -> torch.Tensor:
+def preprocess_image(image_path: str | Path):
+    torch = _require_torch()
     path = Path(image_path).resolve()
     with Image.open(path) as image:
         if image.mode != "RGB":
@@ -159,8 +170,9 @@ class MCIInference:
         self,
         checkpoint_path: str | Path,
         vocab_path: str | Path | None = None,
-        device: str | torch.device | None = None,
+        device: str | None = None,
     ) -> None:
+        torch = _require_torch()
         self.checkpoint_path = Path(checkpoint_path).resolve()
         self.vocab_path = Path(vocab_path if vocab_path is not None else VOCAB_PATH).resolve()
         if not self.checkpoint_path.is_file():
@@ -225,6 +237,7 @@ class MCIInference:
         self.decoder.to(self.device).eval()
 
     def predict(self, image_a_path: str | Path, image_b_path: str | Path) -> MCIPrediction:
+        torch = _require_torch()
         image_a = preprocess_image(image_a_path).to(self.device)
         image_b = preprocess_image(image_b_path).to(self.device)
 

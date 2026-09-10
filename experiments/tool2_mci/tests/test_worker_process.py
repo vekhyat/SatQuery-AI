@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -67,7 +68,7 @@ class WorkerProcessTest(unittest.TestCase):
         port = self._free_loopback_port()
         process = subprocess.Popen(
             [
-                str(Path(".venv-mci/Scripts/python.exe").resolve()),
+                sys.executable,
                 "-m",
                 "experiments.tool2_mci.tests.fake_worker_server",
                 "--host",

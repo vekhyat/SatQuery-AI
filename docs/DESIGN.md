@@ -26,7 +26,13 @@ Border Beam belongs to question focus/loading. Thinking Orbs marks waiting; it n
 
 ## Truth and state
 
-Demo examples load prepared scenes and questions and remain labelled illustrative. Real uploads show actual raster previews. Rejected inputs have no overlay; stubs state analysis is not connected. Confidence is not measured for demos/stubs. Receipt stages, tools, parameters, warnings and result downloads come from JSON.
+Demo examples load prepared scenes and questions and remain labelled illustrative. Real uploads show actual raster previews. Rejected inputs have no overlay; stubs state analysis is not connected. Confidence is not measured for demos, stubs, or current Tool 2/3 results. Receipt stages, tools, parameters, warnings and result downloads come from JSON.
+
+## Live specialist evidence
+
+Successful `change_mci_v1` results use `Tool2ChangeView`: Compare, Overlay, and Semantic mask controls with pressed states, model caption, changed-pixel statistics, optional physical area, and evidence downloads. The semantic legend distinguishes unchanged/background, road change, and building change. Zero-change results hide road/building cards and show “No detected change.” Missing artifacts show an unavailable state. Describe the caption as model-generated; do not imply it answers arbitrary questions.
+
+Successful `optical_sar_v1` results use `Tool3Maps` with Optical-only, SAR-only, and Fused candidate maps. These are computed evidence, distinct from the illustrative scene viewer’s visual blend. Keep warnings and the processing receipt accessible for both tools. The browser calls only the main API, never the MCI worker directly.
 
 ## Assets
 
