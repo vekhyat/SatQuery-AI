@@ -5,8 +5,14 @@ import sys
 import unittest
 import uuid
 from math import inf, nan
+from pathlib import Path
 
 from pydantic import ValidationError
+
+
+def _server_owned_path(*parts: str) -> str:
+    root = Path("C:/") if Path("C:/").is_absolute() else Path("/")
+    return str(root.joinpath(*parts))
 
 
 class ChangeMciProtocolTest(unittest.TestCase):
@@ -30,15 +36,15 @@ class ChangeMciProtocolTest(unittest.TestCase):
             ChangeAnalysisRequest(
                 contract_version="9.9",
                 request_id="not-a-uuid",
-                before_path="C:/server/before.png",
-                after_path="C:/server/after.png",
+                before_path=_server_owned_path("server", "before.png"),
+                after_path=_server_owned_path("server", "after.png"),
             )
 
         request = ChangeAnalysisRequest(
             contract_version="1.0",
             request_id=uuid.uuid4(),
-            before_path="C:/server/before.png",
-            after_path="C:/server/after.png",
+            before_path=_server_owned_path("server", "before.png"),
+            after_path=_server_owned_path("server", "after.png"),
         )
         self.assertEqual(request.contract_version, "1.0")
 
@@ -60,8 +66,8 @@ class ChangeMciProtocolTest(unittest.TestCase):
         valid = {
             "contract_version": "1.0",
             "request_id": str(uuid.uuid4()),
-            "before_path": "C:/server/before.tif",
-            "after_path": "C:/server/after.tif",
+            "before_path": _server_owned_path("server", "before.tif"),
+            "after_path": _server_owned_path("server", "after.tif"),
         }
         for invalid in (
             {key: value for key, value in valid.items() if key != "contract_version"},
@@ -69,6 +75,14 @@ class ChangeMciProtocolTest(unittest.TestCase):
             {key: value for key, value in valid.items() if key != "after_path"},
             {**valid, "before_path": "relative.tif"},
             {**valid, "after_path": ""},
+            {
+                **valid,
+                "before_path": (
+                    "C:/windows-drive.tif"
+                    if not Path("C:/windows-drive.tif").is_absolute()
+                    else "/posix-root.tif"
+                ),
+            },
             {**valid, "geo_metadata": ["not", "an", "object"]},
             {**valid, "client_selected_run_id": "forbidden"},
         ):

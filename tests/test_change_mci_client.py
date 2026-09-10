@@ -5,11 +5,17 @@ from __future__ import annotations
 import json
 import unittest
 import uuid
+from pathlib import Path
 
 import httpx
 
 from satquery.tools.change_mci_protocol import ChangeAnalysisRequest
 from satquery.tools.mci_worker_client import MCIWorkerClient, MCIWorkerClientError
+
+
+def _server_owned_path(*parts: str) -> str:
+    root = Path("C:/") if Path("C:/").is_absolute() else Path("/")
+    return str(root.joinpath(*parts))
 
 
 def success_payload(request_id: str) -> dict:
@@ -56,8 +62,8 @@ class MCIWorkerClientTest(unittest.TestCase):
         return ChangeAnalysisRequest(
             contract_version="1.0",
             request_id=uuid.uuid4(),
-            before_path="C:/trusted/before.tif",
-            after_path="C:/trusted/after.tif",
+            before_path=_server_owned_path("trusted", "before.tif"),
+            after_path=_server_owned_path("trusted", "after.tif"),
         )
 
     def test_analyze_validates_response_and_preserves_request_id(self) -> None:
