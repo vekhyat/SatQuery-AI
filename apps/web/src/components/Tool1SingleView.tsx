@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, Layers2 } from 'lucide-react';
 import type { ResultEnvelope, Scene } from '../lib/types';
 import './tool1-single-view.css';
@@ -14,6 +14,26 @@ export function isTool1SingleResult(result: ResultEnvelope | null): boolean {
   );
 }
 
+function safeArtifactUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return undefined;
+  const rawPath = value.split(/[?#]/, 1)[0];
+  if (rawPath.split('/').some(segment => {
+    try {
+      const decoded = decodeURIComponent(segment);
+      return decoded === '.' || decoded === '..' || decoded.includes('\\');
+    } catch {
+      return true;
+    }
+  })) return undefined;
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin || url.search || url.hash || url.pathname.split('/').some(segment => segment === '.' || segment === '..')) return undefined;
+    return url.pathname;
+  } catch {
+    return undefined;
+  }
+}
+
 export function Tool1SingleView({
   result,
   scene,
@@ -23,16 +43,22 @@ export function Tool1SingleView({
   scene?: Scene;
   busy: boolean;
 }) {
-  const [mode, setMode] = useState<ViewMode>('overlay');
+  const facts = result.facts || {};
+  const overlayUrl =
+    safeArtifactUrl(result.overlay.file) ??
+    safeArtifactUrl((facts.artifacts as Record<string, unknown> | undefined)?.overlay);
+  const [mode, setMode] = useState<ViewMode>(overlayUrl ? 'overlay' : 'scene');
   const [failedOverlay, setFailedOverlay] = useState(false);
 
-  const facts = result.facts || {};
+  useEffect(() => {
+    setFailedOverlay(false);
+  }, [overlayUrl]);
+
   const labels = Array.isArray(facts.labels) ? (facts.labels as string[]) : [];
   const hasWater = Boolean(facts.water);
   const hasVegetation = Boolean(facts.vegetation);
   const hasBuiltUp = Boolean(facts.built_up);
   const isPackA = Boolean(facts.is_pack_a);
-  const overlayUrl = result.overlay.file || (facts.artifacts as Record<string, string> | undefined)?.overlay;
 
   return (
     <section className="tool1-single-view" aria-label="Single-image land cover evidence" aria-busy={busy}>
@@ -54,7 +80,16 @@ export function Tool1SingleView({
           Land-cover overlay
         </button>
         {overlayUrl && (
-          <a className="tool1-download-link" href={overlayUrl} download="landcover_overlay.png">
+          <a
+            className="tool1-download-link"
+            href={overlayUrl}
+            download="landcover_overlay.png"
+            aria-disabled={busy}
+            tabIndex={busy ? -1 : undefined}
+            onClick={event => {
+              if (busy) event.preventDefault();
+            }}
+          >
             <Download size={14} />
             Overlay PNG
           </a>
@@ -105,7 +140,7 @@ export function Tool1SingleView({
           <span className={`tool1-badge builtup ${hasBuiltUp ? 'active' : 'inactive'}`}>
             <i /> Built-up {hasBuiltUp ? 'detected' : 'not detected'}
           </span>
-          {isPackA && (
+          {isPackA && hasWater && hasVegetation && hasBuiltUp && (
             <span className="tool1-badge pack-a active">
               <i /> Pack A card verified
             </span>

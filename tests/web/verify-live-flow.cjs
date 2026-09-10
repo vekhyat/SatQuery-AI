@@ -1,5 +1,6 @@
-// Live notebook check against the combined server. Fixtures are 64x96, so a
-// dated optical pair is rejected by Tool 2 preflight (not a change stub).
+// Live notebook check against the combined server. Single-image is live Tool 1.
+// Fixtures are 64x96, so a dated optical pair is rejected by Tool 2 preflight
+// (not a change stub).
 const { chromium } = require('../../apps/web/node_modules/@playwright/test');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -13,7 +14,7 @@ const assert = require('node:assert/strict');
   page.on('response', response => { if (response.url().includes('/api/preview/')) previews.push(response.status()); });
   await page.goto(process.env.SATQUERY_TEST_URL || 'http://127.0.0.1:5173', { waitUntil: 'networkidle' });
   const cases = [
-    { files: ['before'], modalities: ['optical'], question: 'Describe the land cover', expect: { task: 'single_image', stub: true } },
+    { files: ['before'], modalities: ['optical'], question: 'Describe the land cover', expect: { task: 'single_image', stub: false } },
     { files: ['after', 'before'], modalities: ['optical', 'optical'], question: 'What changed?', expect: { task: 'reject', rejectionCode: 'UNSUPPORTED_IMAGE', tool: 'change_mci_v1' } },
     { files: ['sar', 'before'], modalities: ['sar', 'optical'], question: 'Compare the optical and SAR images', expect: { task: 'reject' } },
     { files: ['before', 'mismatch'], modalities: ['optical', 'optical'], question: 'What changed?', expect: { task: 'reject' } },
@@ -37,12 +38,18 @@ const assert = require('node:assert/strict');
     const data = await response.json();
     assert.equal(data.task, scenario.expect.task);
     await page.getByRole('button', { name: 'Download JSON', exact: true }).waitFor();
-    assert.equal(data.overlay.type, 'none');
     const lastTrace = data.receipt.trace.at(-1);
-    if (scenario.expect.stub) {
-      assert.deepEqual(data.facts, {});
-      assert.equal(lastTrace.status, 'stub');
+    if (scenario.expect.task === 'single_image') {
+      assert.equal(scenario.expect.stub, false);
+      assert.equal(data.overlay.type, 'heatmap');
+      assert.equal(typeof data.overlay.file, 'string');
+      assert.ok(data.overlay.file.startsWith('/api/artifacts/tool1/'));
+      assert.equal(lastTrace.status, 'ok');
+      assert.equal(data.facts.confidence_status, 'not_measured');
+      assert.ok(data.tools.includes('single_image_v1'));
+      assert.ok(data.facts && Object.keys(data.facts).length > 0);
     } else {
+      assert.equal(data.overlay.type, 'none');
       assert.equal(data.receipt.rejected, true);
       assert.notEqual(lastTrace.status, 'stub');
       assert.ok(!data.tools.includes('change_stub_v0'));
@@ -68,3 +75,4 @@ const assert = require('node:assert/strict');
   console.log(JSON.stringify({ outcomes, noFrontendModeSent: true, previewStatuses: previews, errors }, null, 2));
   await browser.close();
 })().catch(error => { console.error(error); process.exit(1); });
+

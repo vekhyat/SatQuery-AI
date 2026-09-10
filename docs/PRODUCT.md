@@ -16,7 +16,7 @@ The first prototype is for the SIH team demonstration. A satellite-image analyst
 
 ## Capabilities and Constraints
 
-The existing Python API exposes health, upload, and query endpoints. Its checker verifies GeoTIFF metadata and exact-grid compatibility; its deterministic router selects single_image, change, optical_sar, or reject. Tool 2 runs pretrained Change-Agent MCI in a separate local worker for exact-grid 256×256 uint8 RGB optical pairs with different dates. It returns a change caption, semantic masks, and statistics. Optical–SAR Tool 3 computes threshold candidate maps; only single-image analysis remains a stub. Tool 2 is not question-conditioned VQA. Label prepared demos as illustrative, distinguish computed results from demos, and never imply calibrated accuracy.
+The existing Python API exposes health, upload, and query endpoints. Its checker verifies GeoTIFF metadata and exact-grid compatibility; its deterministic router selects single_image, change, optical_sar, or reject. Tool 1 is connected as rule-based land-cover analysis (NDWI/NDVI/brightness) with uncalibrated confidence (`confidence=0.0` means not measured). Tool 2 runs pretrained Change-Agent MCI in a separate local worker for exact-grid 256×256 uint8 RGB optical pairs with different dates. It returns a change caption, semantic masks, and statistics. Optical–SAR Tool 3 computes threshold candidate maps. Tool 2 is not question-conditioned VQA. Label prepared demos as illustrative, distinguish computed results from demos, and never imply calibrated accuracy.
 
 ## Operating Context
 

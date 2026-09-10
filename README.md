@@ -47,7 +47,11 @@ Not three LLMs. A VLM/LoRA upgrade, if any, sits inside the single-image tool af
 | Backend checks | pytest, HTTPX TestClient, Python compileall | API, validation, storage, and upload-failure checks. |
 
 The three specialist workflows are single-image analysis, temporal change, and
-optical–SAR analysis. Tool 2 is connected as `change_mci_v1`: a separate Python 3.11 worker runs the pretrained Change-Agent MCI checkpoint and returns a change caption, semantic masks, and statistics. Tool 3 runs as `optical_sar_v1` and computes water/built-up candidate maps. Only the normal single-image route remains a declared stub.
+optical–SAR analysis. Tool 1 is connected as `single_image_v1`: rule-based land-cover
+from NDWI, NDVI, and brightness, with a heatmap overlay PNG at
+`/artifacts/tool1/{run_id}/overlay.png`. Facts include labels, water, vegetation,
+built-up, `is_pack_a`, and `confidence_status` (`not_measured`); `confidence=0.0`
+means not measured, the same as Tools 2 and 3. Tool 2 is connected as `change_mci_v1`: a separate Python 3.11 worker runs the pretrained Change-Agent MCI checkpoint and returns a change caption, semantic masks, and statistics. Tool 3 runs as `optical_sar_v1` and computes water/built-up candidate maps. `single_image_stub_v0` may remain in the registry; the live single-image route is `single_image_v1`.
 
 The main API requires Python 3.12+ and does not import Torch. The MCI worker has its own pinned dependencies and must be started separately; installing the main package does not install the worker or checkpoint. Training, LoRA, question-conditioned VQA, and deployment are not implemented.
 
@@ -62,7 +66,7 @@ The first executable backend contains three deliberately separate parts:
 2. The **router** applies visible if/then rules to choose `single_image`, `change`, `optical_sar`, or `reject`.
 3. The **API** is the front door used by the Query Notebook and API clients. It stores each upload for 24 hours and returns stable JSON.
 
-Tools 2 and 3 run through `/upload` and `/query`. Tool 2 adds Compare, Overlay, and Semantic mask views; Tool 3 shows three computed candidate maps. Single-image queries retain declared stub behavior. See the [Tool 2 setup and limits](docs/TOOL2.md) before querying a temporal pair. See [Tool 3 handoff](docs/TOOL3_HANDOFF.md) for band requirements, Pack C, and integration details.
+Tools 1, 2, and 3 run through `/upload` and `/query`. Tool 1 adds Scene and Land-cover overlay views with class badges. Tool 2 adds Compare, Overlay, and Semantic mask views; Tool 3 shows three computed candidate maps. A single SAR file still routes to the single-image task (not optical_sar) but is not classified with optical indices. See the [Tool 2 setup and limits](docs/TOOL2.md) before querying a temporal pair. See [Tool 3 handoff](docs/TOOL3_HANDOFF.md) for band requirements, Pack C, and integration details.
 
 ### Set up on Windows
 
@@ -86,6 +90,7 @@ Open `http://127.0.0.1:8000/docs` for the interactive API page. The core endpoin
 - `GET /health`
 - `POST /upload`
 - `POST /query`
+- `GET /artifacts/tool1/{run_id}/{filename}` for completed single-image overlay evidence
 - `GET /artifacts/tool2/{run_id}/{filename}` for completed change evidence
 - `GET /artifacts/tool3/{run_id}/{filename}` for optical/SAR evidence
 
@@ -147,25 +152,34 @@ question; the frontend does not send a tool name.
 
 ### Query response — API to frontend
 
-This is a schema-valid single-image stub example, not a computed analysis result.
-Warnings and trace messages may vary with the uploaded file.
+This is a schema-valid live Tool 1 example. Labels, overlay path, warnings, and
+trace details vary with the uploaded file. `confidence` is uncalibrated: `0.0`
+means not measured, not a validated accuracy score.
 
 ```json
 {
   "task": "single_image",
-  "tools": ["checker_v1", "router_v1", "single_image_stub_v0"],
+  "tools": ["checker_v1", "router_v1", "single_image_v1"],
   "parameters": {
     "asset_id": "11111111-1111-4111-8111-111111111111"
   },
-  "facts": {},
-  "answer_text": "The request was validated and routed to single_image, but the specialist analysis tool is not connected yet.",
+  "facts": {
+    "summary": "This scene contains: vegetation.",
+    "labels": ["vegetation"],
+    "water": false,
+    "vegetation": true,
+    "built_up": false,
+    "is_pack_a": false,
+    "confidence_status": "not_measured"
+  },
+  "answer_text": "This scene contains: vegetation.",
   "confidence": 0.0,
   "warnings": [
-    "single_image_stub_v0 is a routing stub; no image analysis has been performed."
+    "3-band RGB image detected without NIR band. Rule-based visible detection used."
   ],
   "overlay": {
-    "type": "none",
-    "file": null
+    "type": "heatmap",
+    "file": "/artifacts/tool1/0123456789abcdef0123456789abcdef/overlay.png"
   },
   "receipt": {
     "why_this_tool": "One valid GeoTIFF matches the single-image workflow.",
@@ -184,15 +198,17 @@ Warnings and trace messages may vary with the uploaded file.
         "message": "One valid GeoTIFF matches the single-image workflow.",
         "details": {
           "task": "single_image",
-          "tool": "single_image_stub_v0"
+          "tool": "single_image_v1"
         }
       },
       {
         "stage": "tool",
-        "status": "stub",
-        "message": "single_image_stub_v0 returned a declared stub result.",
+        "status": "ok",
+        "message": "single_image_v1 completed specialist analysis.",
         "details": {
-          "facts_returned": false
+          "tool": "single_image_v1",
+          "facts_returned": true,
+          "overlay_type": "heatmap"
         }
       }
     ]
@@ -205,11 +221,11 @@ Warnings and trace messages may vary with the uploaded file.
 | `task` | `single_image`, `change`, `optical_sar`, or `reject`. |
 | `tools` | Versioned checker, router, and selected specialist identifiers; rejected routes have no specialist. |
 | `parameters` | Single-image asset ID; before/after asset IDs and dates; optical/SAR asset IDs; or a rejection code. |
-| `facts` | Specialist output dictionary. Tool 2 includes caption provenance, changed-pixel and class statistics, optional physical area, components, model/timing information, and artifact URLs. Tool 3 includes class statistics, `sar_contribution`, `layer_urls`, artifact links and an uncalibrated confidence status. Stubs return an empty dictionary. |
+| `facts` | Specialist output dictionary. Tool 1 includes `summary`, `labels`, `water`, `vegetation`, `built_up`, `is_pack_a`, and `confidence_status` (`not_measured`). Tool 2 includes caption provenance, changed-pixel and class statistics, optional physical area, components, model/timing information, and artifact URLs. Tool 3 includes class statistics, `sar_contribution`, `layer_urls`, artifact links and an uncalibrated confidence status. Unused registry stubs return an empty dictionary. |
 | `answer_text` | Composer-owned text for the UI. |
-| `confidence` | Number from 0 to 1. Stub results use 0; this is not a validated accuracy metric. |
+| `confidence` | Number from 0 to 1. Live Tools 1/2/3 use 0.0 to mean not measured, not a validated accuracy metric. Unused registry stubs also use 0. |
 | `warnings` | List of messages about metadata, limitations, and tool execution. |
-| `overlay` | `type` is `heatmap`, `change_mask`, or `none`; `file` is a string or `null`. Stubs return `none` and `null`. |
+| `overlay` | `type` is `heatmap`, `change_mask`, or `none`; `file` is a string or `null`. Live Tool 1 returns `heatmap` and a `/artifacts/tool1/{run_id}/overlay.png` file. Unused registry stubs and rejections return `none` and `null`. |
 | `receipt` | Routing explanation, rejection flag/reason, and ordered checker/router/tool trace. |
 
 ### Specialist return — tool to service
@@ -230,7 +246,7 @@ full `ResultEnvelope` above. The frontend reads that envelope.
 }
 ```
 
-The composer builds Tool 2 text from the model caption and measured mask statistics, and Tool 3 text from `facts.sar_contribution`. Other tools can supply `facts.summary`; absent facts retain the stub explanation. The service records `ok` for completed Tools 2/3 runs and `rejected` for unsupported datasets. Tool 1 retains `stub`. Tool 2 captions are not conditioned on the submitted question, and `confidence=0.0` means not measured.
+The composer builds Tool 1 text from `facts.summary`, Tool 2 text from the model caption and measured mask statistics, and Tool 3 text from `facts.sar_contribution`. Absent facts retain the stub explanation. The service records `ok` for completed specialist runs and `rejected` for unsupported datasets. `single_image_stub_v0` may remain in the registry, but the live single-image route is `single_image_v1`. Tool 2 captions are not conditioned on the submitted question, and `confidence=0.0` means not measured.
 
 Tool 2 worker failures use `ErrorEnvelope`: busy is HTTP 429, unavailable/not-ready is 503, timeout is 504, and invalid worker responses or inference failures are 502. Unsupported Tool 2 input becomes an HTTP 200 rejection envelope with no overlay.
 

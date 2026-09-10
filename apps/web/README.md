@@ -30,10 +30,11 @@ Vite forwards `/api` without rewriting the path. The backend-only Uvicorn comman
 - Ask a question. Input validity, modality, dates, grid compatibility, and question wording determine the route on the server.
 - Compare side by side or with a swipe. Optical/SAR/Blend controls change the display; Blend is labelled as a visual blend, not analytical fusion.
 - Expand metadata, warnings, receipt stages, and parameters. Download JSON preserves the result; Export receipt includes the submitted question.
+- Live Tool 1 results show Scene and Land-cover overlay modes, class badges (water, vegetation, built-up), and an overlay PNG. Analysis is rule-based NDWI/NDVI/brightness; confidence is not measured. A single SAR file still routes to the single-image task but is not classified with optical indices.
 - Live Tool 2 results show Compare, Overlay, and Semantic mask modes, a model change description, changed pixels/percentages, road/building change, optional area, and evidence downloads. Inputs must be exact-grid 256×256 three-band uint8 RGB optical GeoTIFFs with different dates. A ready worker is required.
 - Live Tool 3 results show Optical-only, SAR-only, and Fused candidate maps, statistics, and SAR contribution. See [Tool 3 inputs](../../docs/TOOL3_HANDOFF.md).
-- Only single-image analysis remains a stub. Rejected inputs never receive an overlay. Tool 2 worker failures surface as errors, with no stub fallback.
-- Tool 2 captions describe the image pair; they are not conditioned on the question. Confidence for Tools 2/3 is not measured. No-change results say “No detected change”; missing/expired evidence displays an unavailable state.
+- Rejected inputs never receive an overlay. Tool 2 worker failures surface as errors, with no stub fallback.
+- Tool 2 captions describe the image pair; they are not conditioned on the question. Confidence for Tools 1/2/3 is not measured. No-change results say “No detected change”; missing/expired evidence displays an unavailable state.
 
 Investigations live in memory in the browser tab. Uploads expire after 24 hours by default. Refresh resets the notebook without extending upload retention.
 
@@ -62,6 +63,6 @@ node tests\web\verify-tool3.cjs
 node tests\web\verify-live-flow.cjs
 ```
 
-These scripts cover notebook presentation and the dedicated Tool 2/3 evidence views; Tool 2 API/artifact responses are mocked in `verify-tool2.cjs`. `verify-live-flow.cjs` hits the real API with the ordinary 64×96 fixtures: single-image stays a stub, and a dated optical pair is rejected as unsupported Tool 2 input (not 256×256), not as a change stub. Fixtures and outputs are Git-ignored. No deployment is included.
+These scripts cover notebook presentation and the dedicated Tool 1/2/3 evidence views; Tool 2 API/artifact responses are mocked in `verify-tool2.cjs`. `verify-live-flow.cjs` hits the real API with the ordinary 64×96 fixtures: single-image is live (heatmap overlay, not a stub), and a dated optical pair is rejected as unsupported Tool 2 input (not 256×256), not as a change stub. Fixtures and outputs are Git-ignored. No deployment is included.
 
 Use `node tests/web/verify-tool2.cjs` for Tool 2 frontend behavior (mocked API/artifacts), and `node tests/web/verify-tool3.cjs` for Tool 3. Real Tool 2 worker/browser verification is opt-in and needs the checkpoint, dataset fixtures, CUDA environment, and built frontend; see [Tool 2 verification](../../docs/TOOL2.md#verification).

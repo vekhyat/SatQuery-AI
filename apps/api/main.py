@@ -224,7 +224,7 @@ def create_app(
         path = tool1_artifact_path(context, run_id, filename)
         return FileResponse(
             path,
-            media_type="image/png" if path.suffix == ".png" else "application/json",
+            media_type="image/png",
             headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
         )
 

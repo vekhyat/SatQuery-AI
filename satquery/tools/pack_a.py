@@ -8,6 +8,9 @@ import numpy as np
 import rasterio
 from rasterio.transform import from_origin
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_DEFAULT_OUTPUT = _REPO_ROOT / "demo/packs/A/Pack_A_01.tif"
+
 
 def create_pack_a(destination_file: Path | str) -> Path:
     """Generates a frozen 4-band GeoTIFF with water, vegetation, and built-up areas."""
@@ -16,7 +19,7 @@ def create_pack_a(destination_file: Path | str) -> Path:
 
     width = 64
     height = 64
-    transform = from_origin(77.0, 29.0, 10.0, 10.0)
+    transform = from_origin(500000, 3100000, 10.0, 10.0)
 
     # Initialize 4 bands with baseline values (Blue, Green, Red, NIR)
     blue = np.full((height, width), 60, dtype=np.uint8)
@@ -77,7 +80,7 @@ def main(argv: list[str] | None = None) -> None:
         "--output",
         "-o",
         type=Path,
-        default=Path("demo/packs/A/Pack_A_01.tif"),
+        default=_DEFAULT_OUTPUT,
         help="Path to generate Pack A GeoTIFF",
     )
     args = parser.parse_args(argv)

@@ -125,6 +125,8 @@ def test_single_image_route_runs_tool1_specialist_analysis(
     overlay_res = client.get(body["overlay"]["file"])
     assert overlay_res.status_code == 200
     assert overlay_res.headers["content-type"] == "image/png"
+    assert overlay_res.headers["cache-control"] == "no-store"
+    assert body["facts"]["confidence_status"] == "not_measured"
 
 
 def test_single_radar_description_is_not_mistaken_for_sensor_comparison(
@@ -136,7 +138,24 @@ def test_single_radar_description_is_not_mistaken_for_sensor_comparison(
     ).json()
     response = query(client, [uploaded["asset_id"]], "Describe this radar scene")
     assert response.status_code == 200
-    assert response.json()["task"] == "single_image"
+    body = response.json()
+    assert body["task"] == "single_image"
+    assert body["confidence"] == 0.0
+    assert body["facts"]["water"] is False
+    assert body["facts"]["vegetation"] is False
+    assert body["facts"]["built_up"] is False
+    assert any(
+        "optical" in warning.lower()
+        and "sar" in warning.lower()
+        and (
+            "index" in warning.lower()
+            or "indices" in warning.lower()
+            or "land-cover" in warning.lower()
+            or "land cover" in warning.lower()
+        )
+        for warning in body["warnings"]
+    )
+    assert body["facts"]["confidence_status"] == "not_measured"
 
 
 def test_two_optical_files_can_use_the_word_optical_without_false_rejection(

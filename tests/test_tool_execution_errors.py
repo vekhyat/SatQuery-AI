@@ -8,6 +8,7 @@ from satquery import errors
 from satquery.storage import AssetStore
 from satquery.tools.context import ToolContext
 from satquery.tools.optical_sar import ToolInputError, optical_sar_v1
+from satquery.tools.single_image import single_image_v1
 
 
 def test_tool_execution_error_carries_safe_execution_semantics():
@@ -69,5 +70,39 @@ def test_tool3_context_and_busy_failures_use_generic_execution_error(tmp_path):
         slots.release()
     assert busy.value.status_code == 429
     assert busy.value.code == "tool3_busy"
+    assert busy.value.retryable is True
+    assert busy.value.as_rejection is False
+
+
+def test_tool1_context_and_busy_failures_use_generic_execution_error(tmp_path):
+    plan = RoutePlan(
+        task=Task.SINGLE_IMAGE,
+        tool="single_image_v1",
+        ordered_asset_ids=[],
+        parameters={},
+        why="test",
+    )
+    with pytest.raises(errors.ToolExecutionError) as missing:
+        single_image_v1([], plan, None)
+    assert missing.value.status_code == 500
+    assert missing.value.code == "missing_tool_context"
+    assert missing.value.as_rejection is False
+
+    store = AssetStore(tmp_path / "uploads", 1024, timedelta(hours=1))
+    slots = BoundedSemaphore(1)
+    assert slots.acquire(blocking=False)
+    context = ToolContext(
+        store=store,
+        output_dir=store.root / "tool1-results",
+        artifact_base_url="/artifacts/tool1",
+        slots=slots,
+    )
+    try:
+        with pytest.raises(errors.ToolExecutionError) as busy:
+            single_image_v1([], plan, context)
+    finally:
+        slots.release()
+    assert busy.value.status_code == 429
+    assert busy.value.code == "tool1_busy"
     assert busy.value.retryable is True
     assert busy.value.as_rejection is False

@@ -196,6 +196,8 @@ def test_health_upload_query_runs_tool1_specialist_analysis(
     assert result["overlay"]["file"].startswith("/api/artifacts/tool1/")
     assert "This scene" in result["answer_text"]
     assert result["receipt"]["trace"][-1]["status"] == "ok"
+    assert "single_image_v1" in result["tools"]
+    assert result["facts"]["confidence_status"] == "not_measured"
 
 
 def test_preview_returns_bounded_png(

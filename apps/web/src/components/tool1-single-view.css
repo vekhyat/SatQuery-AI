@@ -55,6 +55,12 @@
   background: #f0f4f4;
 }
 
+.tool1-download-link[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .tool1-stage {
   min-height: 280px;
   display: grid;
