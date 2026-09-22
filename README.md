@@ -1,8 +1,8 @@
-# SIH26167 · SatQuery AI
+# SatQuery AI
 
 ISRO problem statement: **SatQuery AI** — an interactive vision-language assistant for multimodal remote-sensing image analysis through text queries.
 
-**Repo:** https://github.com/vekhyat/SIH26167
+**Repo:** https://github.com/vekhyat/SatQuery-AI
 
 ## Start here
 
